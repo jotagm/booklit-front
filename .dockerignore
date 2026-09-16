@@ -1,0 +1,11 @@
+node_modules
+dist
+dist-ssr
+.git
+.claude
+.env
+.env.*
+!.env.example
+*.log
+*.pdf
+README.md

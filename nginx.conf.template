@@ -1,0 +1,29 @@
+server {
+    listen ${PORT};
+    server_name _;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    gzip on;
+    gzip_types text/css application/javascript application/json image/svg+xml;
+    gzip_min_length 1024;
+
+    # Os arquivos de /assets levam hash no nome, entao podem ser cacheados para sempre.
+    location /assets/ {
+        try_files $uri =404;
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+
+    # O index.html nunca e cacheado: e ele que aponta para o bundle novo a cada deploy.
+    location = /index.html {
+        add_header Cache-Control "no-cache";
+    }
+
+    # Rotas do React Router (/clubes, /perfil, ...) nao existem como arquivo: sem este
+    # fallback, abrir a URL direto ou dar F5 numa rota interna devolve 404.
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}
