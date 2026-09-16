@@ -1,0 +1,73 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  @apply bg-cream-100 text-ink-900 antialiased;
+}
+
+::selection {
+  @apply bg-brand-300 text-ink-900;
+}
+
+/* scrollbar discreta, sem depender de plugin */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #DDA772 transparent;
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center rounded-full px-5 py-3 text-sm font-semibold transition-colors disabled:opacity-50 disabled:pointer-events-none;
+  }
+  .btn-primary {
+    @apply btn bg-brand-500 text-cream-50 hover:bg-brand-600;
+  }
+  .btn-secondary {
+    @apply btn bg-transparent border border-ink-800/15 text-ink-800 hover:bg-ink-800/5;
+  }
+  .btn-ghost {
+    @apply btn bg-transparent text-brand-600 hover:bg-brand-500/10 px-3 py-2;
+  }
+  .field-label {
+    @apply block text-[11px] font-semibold tracking-wider text-muted-600 uppercase mb-1;
+  }
+  .field-input {
+    @apply w-full rounded-xl border border-ink-800/15 bg-cream-50 px-4 py-3 text-sm text-ink-900 placeholder:text-muted-500/70 outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-400/30;
+  }
+  .card {
+    @apply rounded-xl2 border border-ink-800/10 bg-cream-50 shadow-sm;
+  }
+
+  /* Rótulo de seção do mock ("NOVIDADES DOS SEUS CLUBES", "PRÓXIMOS PRAZOS", ...) */
+  .section-label {
+    @apply mb-2 text-[11px] font-bold uppercase tracking-[0.12em] text-muted-500;
+  }
+  /* Etiqueta de status dentro do cartão de clube ("no ritmo", "vote até quarta") */
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold;
+  }
+  .chip-neutro {
+    @apply chip bg-ink-800/[0.06] text-muted-700;
+  }
+  .chip-suave {
+    @apply chip bg-brand-50 text-brand-700;
+  }
+  .chip-forte {
+    @apply chip bg-brand-500 text-cream-50;
+  }
+
+  /* Some com a barra de rolagem do carrossel de novidades, mantendo o scroll. */
+  .sem-scrollbar {
+    scrollbar-width: none;
+  }
+  .sem-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}
