@@ -1,5 +1,11 @@
 import { api } from "./client";
-import type { GoogleBooksResponse, LeituraClubeRequest, LeituraClubeResponse, UUID } from "./types";
+import type {
+  CampoDeBusca,
+  GoogleBooksResponse,
+  LeituraClubeRequest,
+  LeituraClubeResponse,
+  UUID,
+} from "./types";
 
 export async function criarLeitura(dados: LeituraClubeRequest): Promise<LeituraClubeResponse> {
   const { data } = await api.post<LeituraClubeResponse>("/leituras", dados);
@@ -35,13 +41,22 @@ export async function buscarLeituraAtiva(clubeId: UUID): Promise<LeituraClubeRes
   }
 }
 
+export interface BuscaDeLivros {
+  // Onde procurar: o backend traduz para os operadores intitle:/inauthor:/isbn:.
+  campo?: CampoDeBusca;
+  // Vira o langRestrict do Google Books. Sem ele a busca disputa relevância com o catálogo
+  // inteiro e as edições em inglês dominam: "Duna" não traz a edição brasileira.
+  idioma?: string;
+  page?: number;
+  size?: number;
+}
+
 export async function buscarLivrosGoogle(
-  titulo: string,
-  page = 0,
-  size = 10
+  termo: string,
+  { campo = "TUDO", idioma, page = 0, size = 10 }: BuscaDeLivros = {}
 ): Promise<GoogleBooksResponse> {
   const { data } = await api.get<GoogleBooksResponse>("/leituras/livros/buscar", {
-    params: { titulo, page, size },
+    params: { termo, campo, page, size, ...(idioma ? { idioma } : {}) },
   });
   return data;
 }

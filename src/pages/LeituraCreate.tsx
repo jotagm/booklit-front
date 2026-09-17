@@ -22,6 +22,15 @@ export default function LeituraCreate() {
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
+  // O Google costuma informar o número de páginas do volume; usar isso como meta poupa
+  // o líder de procurar a contagem na contracapa. Só preenche quando a meta é em páginas.
+  function selecionarLivro(escolhido: LivroSelecionado) {
+    setLivro(escolhido);
+    if (tipoMeta === "PAGINA" && escolhido.paginas && escolhido.paginas > 0) {
+      setValorMeta(escolhido.paginas);
+    }
+  }
+
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     if (!clubeId || !livro) return;
@@ -62,7 +71,7 @@ export default function LeituraCreate() {
       <form onSubmit={onSubmit} className="flex flex-col gap-5">
         <div>
           <p className="field-label">livro</p>
-          <BookSearchPicker selecionado={livro} onSelecionar={setLivro} />
+          <BookSearchPicker selecionado={livro} onSelecionar={selecionarLivro} />
         </div>
 
         <div>

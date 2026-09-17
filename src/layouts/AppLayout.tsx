@@ -1,13 +1,14 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import Avatar from "../components/Avatar";
-import { IconeClubes, IconeLeituras, IconePerfil, Logo } from "../components/NavIcons";
+import { IconeClubes, IconeExplorar, IconeLeituras, IconePerfil, Logo } from "../components/NavIcons";
 
 // Duas formas do mesmo shell, como no mock.pdf: sidebar fixa no desktop (lg+)
 // e barra inferior no mobile.
 const abas = [
   { to: "/clubes", label: "clubes", labelLongo: "meus clubes", icon: IconeClubes },
   { to: "/leituras", label: "leituras", labelLongo: "leituras ativas", icon: IconeLeituras },
+  { to: "/livros", label: "livros", labelLongo: "explorar livros", icon: IconeExplorar },
   { to: "/perfil", label: "perfil", labelLongo: "perfil", icon: IconePerfil },
 ];
 
@@ -77,7 +78,7 @@ export default function AppLayout() {
               key={to}
               to={to}
               className={({ isActive }) =>
-                `flex flex-col items-center gap-1 rounded-xl px-6 py-1.5 text-[11px] font-medium ${
+                `flex flex-col items-center gap-1 rounded-xl px-4 py-1.5 text-[11px] font-medium ${
                   isActive ? "text-brand-600" : "text-muted-500"
                 }`
               }

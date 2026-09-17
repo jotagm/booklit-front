@@ -33,6 +33,23 @@ export function IconeLeituras({ ativo = false }: { ativo?: boolean }) {
   );
 }
 
+export function IconeExplorar({ ativo = false }: { ativo?: boolean }) {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={ativo ? 2 : 1.6}
+      aria-hidden="true"
+    >
+      <circle cx="11" cy="11" r="6.5" />
+      <path d="M16 16l4.5 4.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export function IconePerfil({ ativo = false }: { ativo?: boolean }) {
   return (
     <svg

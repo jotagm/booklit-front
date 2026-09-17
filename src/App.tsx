@@ -13,6 +13,7 @@ import ClubDetail from "./pages/ClubDetail";
 import LeituraCreate from "./pages/LeituraCreate";
 import LeituraDetail from "./pages/LeituraDetail";
 import LeiturasAtivas from "./pages/LeiturasAtivas";
+import Livros from "./pages/Livros";
 import VotacaoCreate from "./pages/VotacaoCreate";
 import VotacaoDetail from "./pages/VotacaoDetail";
 import Profile from "./pages/Profile";
@@ -63,6 +64,7 @@ export default function App() {
             <Route path="/clubes" element={<ClubList />} />
             <Route path="/clubes/:clubeId" element={<ClubDetail />} />
             <Route path="/leituras" element={<LeiturasAtivas />} />
+            <Route path="/livros" element={<Livros />} />
             <Route path="/leituras/:leituraId" element={<LeituraDetail />} />
             <Route path="/votacoes/:votacaoId" element={<VotacaoDetail />} />
             <Route path="/perfil" element={<Profile />} />

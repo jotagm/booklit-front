@@ -208,15 +208,33 @@ export interface ComentarioResponse {
 }
 
 // ---- google books (proxy do backend) ----
+
+// Onde o termo é procurado dentro do volume (enum CampoDeBusca no backend).
+export type CampoDeBusca = "TUDO" | "TITULO" | "AUTOR" | "EDITORA" | "ISBN";
+
+export interface VolumeInfo {
+  title: string;
+  subtitle?: string | null;
+  authors?: string[] | null;
+  publisher?: string | null;
+  // Vem como "2017", "2017-05" ou "2017-05-31", dependendo do volume.
+  publishedDate?: string | null;
+  description?: string | null;
+  pageCount?: number | null;
+  language?: string | null;
+  infoLink?: string | null;
+  imageLinks?: { smallThumbnail?: string; thumbnail?: string } | null;
+}
+
+export interface GoogleBooksItem {
+  id: string;
+  volumeInfo: VolumeInfo;
+}
+
 export interface GoogleBooksResponse {
-  items: {
-    id: string;
-    volumeInfo: {
-      title: string;
-      authors?: string[];
-      imageLinks?: { thumbnail?: string };
-    };
-  }[];
+  totalItems?: number | null;
+  // O Google omite "items" quando não há resultado, em vez de mandar lista vazia.
+  items?: GoogleBooksItem[] | null;
 }
 
 // ---- erro padrão do GlobalExceptionHandler ----
