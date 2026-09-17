@@ -9,6 +9,30 @@ server {
     gzip_types text/css application/javascript application/json image/svg+xml;
     gzip_min_length 1024;
 
+    # A API e servida sob o mesmo dominio do front: o navegador nunca faz requisicao
+    # cross-origin, entao nao ha preflight nem CORS envolvido.
+    #
+    # A barra final no proxy_pass e o que remove o prefixo /api antes de repassar:
+    # /api/usuarios chega no Spring como /usuarios, que e onde os controllers vivem.
+    # Sem ela, o backend receberia /api/usuarios e devolveria 404.
+    location /api/ {
+        proxy_pass ${API_URL}/;
+        proxy_http_version 1.1;
+
+        # Upstream em HTTPS precisa de SNI, senao o edge do Railway derruba o TLS.
+        proxy_ssl_server_name on;
+
+        # O Host default vira o do proxy_pass ($proxy_host), que e o que o Railway usa
+        # para rotear ate o servico certo - por isso ele NAO e sobrescrito aqui.
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+
+        proxy_connect_timeout 10s;
+        proxy_read_timeout 60s;
+    }
+
     # Os arquivos de /assets levam hash no nome, entao podem ser cacheados para sempre.
     location /assets/ {
         try_files $uri =404;
@@ -23,6 +47,9 @@ server {
 
     # Rotas do React Router (/clubes, /perfil, ...) nao existem como arquivo: sem este
     # fallback, abrir a URL direto ou dar F5 numa rota interna devolve 404.
+    #
+    # O nginx casa pelo prefixo mais longo, entao /api/ vence este bloco. Era aqui que
+    # /api/* caia antes, e POST em arquivo estatico vira 405 - a causa do erro no cadastro.
     location / {
         try_files $uri $uri/ /index.html;
     }

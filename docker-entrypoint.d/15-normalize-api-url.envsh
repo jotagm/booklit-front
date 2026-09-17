@@ -1,0 +1,27 @@
+#!/bin/sh
+# Roda antes do 20-envsubst-on-templates.sh (ordem lexica) e e *sourced* pelo entrypoint
+# do nginx - por isso a extensao .envsh: so assim o export chega no processo que monta a
+# config a partir de /etc/nginx/templates.
+#
+# Normaliza API_URL para o formato exigido pelo proxy_pass:
+#   - sem esquema, o nginx recusa a diretiva e o container nao sobe;
+#   - com barra final, "proxy_pass ${API_URL}/" vira ".../" duplicado e o backend recebe
+#     //usuarios, devolvendo 404.
+
+if [ -n "${API_URL}" ]; then
+    case "${API_URL}" in
+        http://* | https://*) ;;
+        *) API_URL="https://${API_URL}" ;;
+    esac
+
+    # Remove barras finais repetidas.
+    while :; do
+        case "${API_URL}" in
+            */) API_URL="${API_URL%/}" ;;
+            *) break ;;
+        esac
+    done
+
+    export API_URL
+    echo "$0: API_URL normalizada para ${API_URL}"
+fi
