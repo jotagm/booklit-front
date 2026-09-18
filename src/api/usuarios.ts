@@ -1,7 +1,7 @@
 import { api } from "./client";
-import type { UsuarioRequest, UsuarioResponse, UUID } from "./types";
+import type { UsuarioRequest, UsuarioResponse, UsuarioId, UUID } from "./types";
 
-export async function buscarUsuarioPorId(id: UUID): Promise<UsuarioResponse> {
+export async function buscarUsuarioPorId(id: UsuarioId): Promise<UsuarioResponse> {
   const { data } = await api.get<UsuarioResponse>(`/usuarios/${id}`);
   return data;
 }
@@ -11,7 +11,7 @@ export async function buscarUsuarioPorEmail(email: string): Promise<UsuarioRespo
   return data;
 }
 
-export async function atualizarUsuario(id: UUID, dados: UsuarioRequest): Promise<UsuarioResponse> {
+export async function atualizarUsuario(id: UsuarioId, dados: UsuarioRequest): Promise<UsuarioResponse> {
   const { data } = await api.put<UsuarioResponse>(`/usuarios/${id}`, dados);
   return data;
 }

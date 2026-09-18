@@ -1,13 +1,13 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
-import type { ComentarioResponse } from "../api/types";
+import type { ComentarioResponse, UsuarioId } from "../api/types";
 import Avatar from "./Avatar";
 import Button from "./Button";
 import { formatarDataHora } from "../utils/date";
 
 interface Props {
   comentario: ComentarioResponse;
-  meuUsuarioId: string;
+  meuUsuarioId: UsuarioId | null;
   souLider: boolean;
   ehResposta?: boolean;
   onResponder: (paiId: string, conteudo: string) => Promise<void>;

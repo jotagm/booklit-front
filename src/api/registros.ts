@@ -1,5 +1,5 @@
 import { api } from "./client";
-import type { RegistroResponse, UUID } from "./types";
+import type { RegistroResponse, UsuarioId, UUID } from "./types";
 
 export async function buscarRegistroPorId(id: UUID): Promise<RegistroResponse> {
   const { data } = await api.get<RegistroResponse>(`/registros/${id}`);
@@ -13,7 +13,7 @@ export async function listarRegistrosPorLeitura(leituraClubeId: UUID): Promise<R
 
 export async function buscarRegistroPorLeituraEUsuario(
   leituraClubeId: UUID,
-  usuarioId: UUID
+  usuarioId: UsuarioId
 ): Promise<RegistroResponse | null> {
   try {
     const { data } = await api.get<RegistroResponse>(

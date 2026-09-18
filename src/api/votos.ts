@@ -1,5 +1,5 @@
 import { api } from "./client";
-import type { VotoRequest, VotoResponse, UUID } from "./types";
+import type { VotoRequest, VotoResponse, UsuarioId, UUID } from "./types";
 
 export async function votar(dados: VotoRequest): Promise<VotoResponse> {
   const { data } = await api.post<VotoResponse>("/votos", dados);
@@ -13,7 +13,7 @@ export async function listarVotosPorVotacao(votacaoId: UUID): Promise<VotoRespon
 
 export async function buscarVotoPorVotacaoEUsuario(
   votacaoId: UUID,
-  usuarioId: UUID
+  usuarioId: UsuarioId
 ): Promise<VotoResponse | null> {
   try {
     const { data } = await api.get<VotoResponse>(`/votos/votacao/${votacaoId}/usuario/${usuarioId}`);

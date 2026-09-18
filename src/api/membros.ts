@@ -1,5 +1,5 @@
 import { api } from "./client";
-import type { UsuarioClubeRequest, UsuarioClubeResponse, UUID } from "./types";
+import type { UsuarioClubeRequest, UsuarioClubeResponse, UsuarioId, UUID } from "./types";
 
 export async function buscarMembroPorId(id: UUID): Promise<UsuarioClubeResponse> {
   const { data } = await api.get<UsuarioClubeResponse>(`/membros/${id}`);
@@ -7,7 +7,7 @@ export async function buscarMembroPorId(id: UUID): Promise<UsuarioClubeResponse>
 }
 
 // Lista os clubes (com papel) de um usuário — é a base da tela "meus clubes".
-export async function listarMembrosPorUsuario(usuarioId: UUID): Promise<UsuarioClubeResponse[]> {
+export async function listarMembrosPorUsuario(usuarioId: UsuarioId): Promise<UsuarioClubeResponse[]> {
   const { data } = await api.get<UsuarioClubeResponse[]>(`/membros/usuario/${usuarioId}`);
   return data;
 }
@@ -18,7 +18,7 @@ export async function listarMembrosPorClube(clubeId: UUID): Promise<UsuarioClube
 }
 
 export async function buscarMembroPorUsuarioEClube(
-  usuarioId: UUID,
+  usuarioId: UsuarioId,
   clubeId: UUID
 ): Promise<UsuarioClubeResponse | null> {
   try {

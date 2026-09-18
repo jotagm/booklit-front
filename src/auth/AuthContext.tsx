@@ -5,7 +5,10 @@ import { buscarUsuarioPorEmail, atualizarUsuario as apiAtualizarUsuario } from "
 import { getToken, registerUnauthorizedHandler, setToken } from "../api/client";
 import type { UsuarioRequest, UsuarioResponse } from "../api/types";
 
-const USER_KEY = "clube-livro:user";
+// A chave é versionada de propósito. Sessões abertas antes da troca do id de usuário
+// (UUID -> integer) têm um id que a API não aceita mais; ignorá-las faz o AuthProvider
+// cair no logout automático abaixo, em vez de o app disparar erro em toda chamada.
+const USER_KEY = "clube-livro:user:v2";
 
 interface AuthContextValue {
   usuario: UsuarioResponse | null;

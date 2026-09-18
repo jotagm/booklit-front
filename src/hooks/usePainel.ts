@@ -12,6 +12,7 @@ import type {
   LeituraClubeResponse,
   RegistroResponse,
   UsuarioClubeResponse,
+  UsuarioId,
   UUID,
   VotacaoResponse,
 } from "../api/types";
@@ -73,7 +74,7 @@ function maisRecentePrimeiro(a: { data: string }, b: { data: string }): number {
 
 async function carregarClube(
   membro: UsuarioClubeResponse,
-  usuarioId: UUID
+  usuarioId: UsuarioId
 ): Promise<{ clube: ClubeDoPainel; eventos: Evento[] }> {
   const [leituraAtiva, membrosDoClube, votacoes] = await Promise.all([
     buscarLeituraAtiva(membro.clubeId),

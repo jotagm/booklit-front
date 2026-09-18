@@ -229,7 +229,7 @@ export default function LeituraDetail() {
               <CommentThread
                 key={c.id}
                 comentario={c}
-                meuUsuarioId={usuario?.id ?? ""}
+                meuUsuarioId={usuario?.id ?? null}
                 souLider={souLider}
                 onResponder={responder}
                 onEditar={editar}

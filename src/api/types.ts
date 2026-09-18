@@ -2,6 +2,9 @@
 // Mantidos em sincronia manualmente com adapter/in/rest/dto/**.
 
 export type UUID = string;
+// O id de usuário é um inteiro sequencial no backend (t_usuario.id);
+// todo o resto continua UUID.
+export type UsuarioId = number;
 export type ISODateTime = string; // LocalDateTime serializado pelo Jackson, ex: "2026-07-12T21:00:00"
 
 // ---- enums ----
@@ -37,7 +40,7 @@ export interface UsuarioRequest {
   senha: string;
 }
 export interface UsuarioResponse {
-  id: UUID;
+  id: UsuarioId;
   nome: string;
   email: string;
   createdAt: ISODateTime;
@@ -71,13 +74,13 @@ export interface ClubeResponse {
 
 // ---- usuario x clube (membros) ----
 export interface UsuarioClubeRequest {
-  usuarioId: UUID;
+  usuarioId: UsuarioId;
   clubeId: UUID;
   papel: ClubePapel;
 }
 export interface UsuarioClubeResponse {
   id: UUID;
-  usuarioId: UUID;
+  usuarioId: UsuarioId;
   nomeUsuario: string;
   clubeId: UUID;
   nomeClube: string;
@@ -134,7 +137,7 @@ export interface RegistroResponse {
   id: UUID;
   leituraClubeId: UUID;
   livroTitulo: string;
-  usuarioId: UUID;
+  usuarioId: UsuarioId;
   nomeUsuario: string;
   valorAtual: number;
   updatedAt: ISODateTime;
@@ -157,7 +160,7 @@ export interface VotacaoResponse {
 
 export interface OpcaoVotoRequest {
   votacaoId: UUID;
-  sugeridoPorId: UUID;
+  sugeridoPorId: UsuarioId;
   livroGoogleId: string;
   livroTitulo: string;
   livroCapaUrl?: string | null;
@@ -165,7 +168,7 @@ export interface OpcaoVotoRequest {
 export interface OpcaoVotoResponse {
   id: UUID;
   votacaoId: UUID;
-  sugeridoPorId: UUID;
+  sugeridoPorId: UsuarioId;
   nomeSugeridoPor: string;
   livroGoogleId: string;
   livroTitulo: string;
@@ -175,14 +178,14 @@ export interface OpcaoVotoResponse {
 export interface VotoRequest {
   votacaoId: UUID;
   opcaoVotoId: UUID;
-  usuarioId: UUID;
+  usuarioId: UsuarioId;
 }
 export interface VotoResponse {
   id: UUID;
   votacaoId: UUID;
   opcaoVotoId: UUID;
   livroTitulo: string;
-  usuarioId: UUID;
+  usuarioId: UsuarioId;
   nomeUsuario: string;
   peso: number;
 }
@@ -198,7 +201,7 @@ export interface ComentarioAtualizarRequest {
 export interface ComentarioResponse {
   id: UUID;
   leituraClubeId: UUID;
-  usuarioId: UUID;
+  usuarioId: UsuarioId;
   usuarioNome: string;
   conteudo: string;
   removido: boolean;
