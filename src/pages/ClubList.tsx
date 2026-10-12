@@ -3,7 +3,7 @@ import { useAuth } from "../auth/AuthContext";
 import { usePainel } from "../hooks/usePainel";
 import type { Evento, Prazo, TipoEvento } from "../hooks/usePainel";
 import ClubCard from "../components/ClubCard";
-import MeusConvites from "../components/MeusConvites";
+import ConvitesPendentes from "../components/ConvitesPendentes";
 import BookCover from "../components/BookCover";
 import ProgressBar from "../components/ProgressBar";
 import MiniCalendar from "../components/MiniCalendar";
@@ -89,7 +89,7 @@ export default function ClubList() {
         )}
       </header>
 
-      <MeusConvites />
+      <ConvitesPendentes />
 
       {erro && <ErrorBanner mensagem={erro} />}
       {!erro && painel === null && <Spinner label="carregando seus clubes..." />}
@@ -97,7 +97,7 @@ export default function ClubList() {
       {painel !== null && painel.clubes.length === 0 && (
         <EmptyState
           titulo="Você ainda não tem clubes"
-          descricao="Crie um clube novo ou peça o link de convite para quem já tem um clube."
+          descricao="Crie um clube novo ou aceite um convite para começar a ler em grupo."
           acao={
             <Link to="/clubes/novo">
               <Button>criar meu primeiro clube</Button>

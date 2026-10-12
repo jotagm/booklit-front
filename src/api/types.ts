@@ -136,59 +136,6 @@ export interface ConviteResponse {
   createdAt: ISODateTime;
 }
 
-// ---- link de convite ----
-export interface ConviteLinkResponse {
-  codigo: string;
-  url: string;
-}
-// Prévia pública do link: o que o convidado vê antes de ter conta.
-export interface ConvitePreviewResponse {
-  codigo: string;
-  nomeClube: string;
-  descricao: string | null;
-  nomeLider: string | null;
-  totalMembros: number;
-  temas: string[];
-  leituraAtual: { livroTitulo: string; livroCapaUrl: string | null } | null;
-}
-
-// ---- estante pessoal ----
-export type StatusLeituraPessoal = "QUERO_LER" | "LENDO" | "LIDO" | "ABANDONADO";
-export type ISODate = string; // LocalDate, ex: "2026-10-10"
-
-export interface LeituraPessoalRequest {
-  livroGoogleId: string;
-  livroTitulo: string;
-  livroAutor?: string | null;
-  livroCapaUrl?: string | null;
-  totalPaginas?: number | null;
-  status?: StatusLeituraPessoal;
-}
-export interface LeituraPessoalResponse {
-  id: UUID;
-  livroGoogleId: string;
-  livroTitulo: string;
-  livroAutor: string | null;
-  livroCapaUrl: string | null;
-  status: StatusLeituraPessoal;
-  totalPaginas: number | null;
-  paginaAtual: number;
-  percentual: number | null;
-  nota: number | null;
-  resenha: string | null;
-  dataInicio: ISODate | null;
-  dataFim: ISODate | null;
-  clubeOrigemId: UUID | null;
-  updatedAt: ISODateTime;
-}
-export interface EstanteResumoResponse {
-  ano: number;
-  metaLivros: number | null;
-  lidosNoAno: number;
-  lendo: number;
-  queroLer: number;
-}
-
 // ---- leitura do clube ----
 export interface LeituraClubeRequest {
   clubeId: UUID;
@@ -199,7 +146,7 @@ export interface LeituraClubeRequest {
   valorMeta: number;
   dataInicio: ISODateTime;
   dataFim: ISODateTime;
-  // Opcional: playlist/álbum/podcast/audiobook do Spotify (open.spotify.com).
+  // Link do Spotify (playlist, álbum, podcast ou audiobook). O backend normaliza e valida.
   spotifyUrl?: string | null;
 }
 export interface LeituraClubeResponse {
@@ -213,7 +160,6 @@ export interface LeituraClubeResponse {
   valorMeta: number;
   dataInicio: ISODateTime;
   dataFim: ISODateTime;
-  // Link canônico do Spotify (https://open.spotify.com/<tipo>/<id>) ou null.
   spotifyUrl: string | null;
 }
 
@@ -248,8 +194,7 @@ export interface VotacaoResponse {
 
 export interface OpcaoVotoRequest {
   votacaoId: UUID;
-  // Ignorado pelo backend (quem sugere é sempre o usuário autenticado); mantido por compatibilidade.
-  sugeridoPorId?: UsuarioId;
+  sugeridoPorId: UsuarioId;
   livroGoogleId: string;
   livroTitulo: string;
   livroCapaUrl?: string | null;
@@ -269,8 +214,7 @@ export interface OpcaoVotoResponse {
 export interface VotoRequest {
   votacaoId: UUID;
   opcaoVotoId: UUID;
-  // Ignorado pelo backend (o voto é sempre do usuário autenticado); mantido por compatibilidade.
-  usuarioId?: UsuarioId;
+  usuarioId: UsuarioId;
 }
 export interface VotoResponse {
   id: UUID;
@@ -337,6 +281,58 @@ export interface ErroResponse {
   status: number;
   mensagem: string;
   timestamp: ISODateTime;
+}
+
+// ---- convite por link ----
+export interface ConviteLinkResponse {
+  codigo: string;
+  url: string;
+}
+export interface ConvitePreviewResponse {
+  codigo: string;
+  nomeClube: string;
+  descricao: string | null;
+  nomeLider: string | null;
+  totalMembros: number;
+  temas: string[];
+  leituraAtual: { livroTitulo: string; livroCapaUrl: string | null } | null;
+}
+
+// ---- estante pessoal ----
+export type StatusLeituraPessoal = "QUERO_LER" | "LENDO" | "LIDO" | "ABANDONADO";
+export type ISODate = string; // LocalDate, ex: "2026-10-10"
+
+export interface LeituraPessoalRequest {
+  livroGoogleId: string;
+  livroTitulo: string;
+  livroAutor?: string | null;
+  livroCapaUrl?: string | null;
+  totalPaginas?: number | null;
+  status?: StatusLeituraPessoal | null;
+}
+export interface LeituraPessoalResponse {
+  id: UUID;
+  livroGoogleId: string;
+  livroTitulo: string;
+  livroAutor: string | null;
+  livroCapaUrl: string | null;
+  status: StatusLeituraPessoal;
+  totalPaginas: number | null;
+  paginaAtual: number;
+  percentual: number | null;
+  nota: number | null;
+  resenha: string | null;
+  dataInicio: ISODate | null;
+  dataFim: ISODate | null;
+  clubeOrigemId: UUID | null;
+  updatedAt: ISODateTime;
+}
+export interface EstanteResumoResponse {
+  ano: number;
+  metaLivros: number | null;
+  lidosNoAno: number;
+  lendo: number;
+  queroLer: number;
 }
 
 // ---- feed e reações ----

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { buscarClubePorId, deletarClube } from "../api/clubes";
-import { buscarMembroPorUsuarioEClube, listarMembrosPorClube, removerMembro } from "../api/membros";
+import { buscarMembroPorUsuarioEClube, listarMembrosPorClube } from "../api/membros";
 import { buscarLeituraAtiva } from "../api/leituras";
 import { listarConvitesPorClube, deletarConvite } from "../api/convites";
 import { listarVotacoesPorClube } from "../api/votacoes";
@@ -38,9 +38,6 @@ export default function ClubDetail() {
   const [carregando, setCarregando] = useState(true);
   const [confirmandoExclusao, setConfirmandoExclusao] = useState(false);
   const [excluindo, setExcluindo] = useState(false);
-  const [confirmandoSaida, setConfirmandoSaida] = useState(false);
-  const [saindo, setSaindo] = useState(false);
-  const [removendo, setRemovendo] = useState<UsuarioClubeResponse | null>(null);
 
   const carregar = useCallback(async () => {
     if (!clubeId || !usuario) return;
@@ -83,31 +80,6 @@ export default function ClubDetail() {
       setConvites((prev) => prev.filter((c) => c.id !== id));
     } catch (e) {
       setErro(extrairMensagemErro(e));
-    }
-  }
-
-  async function sairDoClube() {
-    if (!meuMembro) return;
-    setSaindo(true);
-    try {
-      await removerMembro(meuMembro.id);
-      navigate("/clubes", { replace: true });
-    } catch (e) {
-      setErro(extrairMensagemErro(e, "Não foi possível sair do clube."));
-      setSaindo(false);
-      setConfirmandoSaida(false);
-    }
-  }
-
-  async function confirmarRemocao() {
-    if (!removendo) return;
-    try {
-      await removerMembro(removendo.id);
-      setMembros((prev) => prev.filter((m) => m.id !== removendo.id));
-    } catch (e) {
-      setErro(extrairMensagemErro(e, "Não foi possível remover o membro."));
-    } finally {
-      setRemovendo(null);
     }
   }
 
@@ -249,43 +221,29 @@ export default function ClubDetail() {
                 <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-500">
                   {m.papel === "LIDER" ? "líder" : "membro"}
                 </span>
-                {souLider && m.papel !== "LIDER" && (
-                  <button
-                    onClick={() => setRemovendo(m)}
-                    className="text-xs text-muted-500 hover:text-red-600"
-                    aria-label={`remover ${m.nomeUsuario}`}
-                  >
-                    remover
-                  </button>
-                )}
               </li>
             ))}
           </ul>
         </section>
 
-        {/* Link de convite (só líder) */}
-        {souLider && (
+        {/* Convidar (só líder): link compartilhável + convites por e-mail pendentes */}
+        {souLider && clubeId && (
           <section>
-            <h2 className="mb-2 font-serif text-lg text-ink-900">chamar gente para o clube</h2>
-            <LinkDeConvite clubeId={clube.id} nomeClube={clube.nome} />
-          </section>
-        )}
+            <h2 className="mb-2 font-serif text-lg text-ink-900">convidar</h2>
+            <LinkDeConvite clubeId={clubeId} nomeClube={clube.nome} />
 
-        {/* Convites por e-mail pendentes (só líder) */}
-        {souLider && (
-          <section>
-            <div className="mb-2 flex items-center justify-between">
-              <h2 className="font-serif text-lg text-ink-900">convites por e-mail</h2>
+            <div className="mb-2 mt-4 flex items-center justify-between">
+              <h3 className="section-label mb-0">convites por e-mail</h3>
               <Link
                 to={`/clubes/novo/${clubeId}/convidar`}
                 state={{ nomeClube: clube.nome }}
                 className="text-sm font-semibold text-brand-600"
               >
-                + convidar por e-mail
+                + por e-mail
               </Link>
             </div>
             {convites.length === 0 ? (
-              <p className="text-sm text-muted-600">nenhum convite pendente.</p>
+              <p className="text-sm text-muted-600">nenhum convite por e-mail pendente.</p>
             ) : (
               <ul className="card divide-y divide-ink-800/10">
                 {convites.map((c) => (
@@ -307,18 +265,6 @@ export default function ClubDetail() {
           </section>
         )}
 
-        {/* Membro comum pode sair; o líder precisa transferir a liderança antes */}
-        {!souLider && (
-          <section className="mt-4 border-t border-ink-800/10 pt-4">
-            <button
-              onClick={() => setConfirmandoSaida(true)}
-              className="text-sm font-semibold text-red-600 hover:underline"
-            >
-              sair do clube
-            </button>
-          </section>
-        )}
-
         {/* Zona de perigo (só líder) */}
         {souLider && (
           <section className="mt-4 border-t border-ink-800/10 pt-4">
@@ -331,35 +277,6 @@ export default function ClubDetail() {
           </section>
         )}
       </div>
-
-      <Modal aberto={confirmandoSaida} onFechar={() => setConfirmandoSaida(false)} titulo="Sair do clube">
-        <p className="text-sm text-muted-600">
-          Você deixa de ver as leituras e a discussão de <strong>{clube.nome}</strong>. Para voltar, vai
-          precisar de um novo convite.
-        </p>
-        <div className="mt-4 flex gap-2">
-          <Button variant="secondary" fullWidth onClick={() => setConfirmandoSaida(false)}>
-            ficar
-          </Button>
-          <Button fullWidth variant="danger" loading={saindo} onClick={sairDoClube}>
-            sair
-          </Button>
-        </div>
-      </Modal>
-
-      <Modal aberto={removendo !== null} onFechar={() => setRemovendo(null)} titulo="Remover membro">
-        <p className="text-sm text-muted-600">
-          Remover <strong>{removendo?.nomeUsuario}</strong> do clube? A pessoa só volta com um novo convite.
-        </p>
-        <div className="mt-4 flex gap-2">
-          <Button variant="secondary" fullWidth onClick={() => setRemovendo(null)}>
-            cancelar
-          </Button>
-          <Button fullWidth variant="danger" onClick={confirmarRemocao}>
-            remover
-          </Button>
-        </div>
-      </Modal>
 
       <Modal aberto={confirmandoExclusao} onFechar={() => setConfirmandoExclusao(false)} titulo="Excluir clube">
         <p className="text-sm text-muted-600">

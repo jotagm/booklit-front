@@ -79,7 +79,7 @@ export default function AppLayout() {
               key={to}
               to={to}
               className={({ isActive }) =>
-                `flex flex-col items-center gap-1 rounded-xl px-2 py-1.5 text-[11px] font-medium sm:px-4 ${
+                `flex flex-col items-center gap-1 rounded-xl px-2.5 py-1.5 text-[11px] font-medium sm:px-4 ${
                   isActive ? "text-brand-600" : "text-muted-500"
                 }`
               }

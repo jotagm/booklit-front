@@ -53,11 +53,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     registerUnauthorizedHandler(() => sair());
   }, [sair]);
 
-  // Se existir token salvo mas nenhum usuário em cache (ex: localStorage parcial),
-  // não há endpoint de "quem sou eu" — então exige novo login nesse caso raro.
+  // Token salvo sem usuário em cache (ex: localStorage parcial): recupera pelo /usuarios/me;
+  // se o token não valer mais, o interceptor de 401 derruba a sessão.
   useEffect(() => {
     if (getToken() && !usuario) {
-      sair();
+      buscarUsuarioAtual()
+        .then(persistir)
+        .catch(() => sair());
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -94,12 +96,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async (dados: UsuarioRequest) => {
       if (!usuario) return;
       const atualizado = await apiAtualizarUsuario(usuario.id, dados);
-      // O e-mail é o subject do JWT: trocá-lo invalida o token atual. Como o formulário
-      // já tem a senha, reautentica na hora em vez de derrubar a sessão no próximo request.
-      if (atualizado.email !== usuario.email) {
-        const { token } = await apiLogin({ email: atualizado.email, senha: dados.senha });
-        setToken(token);
-      }
       persistir(atualizado);
     },
     [usuario, persistir]

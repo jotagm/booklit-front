@@ -18,7 +18,7 @@ import ProgressBar from "../components/ProgressBar";
 import Avatar from "../components/Avatar";
 import Button from "../components/Button";
 import CommentThread from "../components/CommentThread";
-import SpotifyDaLeitura from "../components/SpotifyDaLeitura";
+import TrilhaDaLeitura from "../components/TrilhaDaLeitura";
 import { formatarData } from "../utils/date";
 import { rotuloTipoMeta } from "../utils/format";
 
@@ -208,7 +208,8 @@ export default function LeituraDetail() {
         </ul>
       </section>
 
-      <SpotifyDaLeitura leitura={leitura} souLider={souLider} onAtualizada={setLeitura} />
+      {/* trilha sonora / audiobook no Spotify */}
+      <TrilhaDaLeitura leitura={leitura} souLider={souLider} onAtualizada={setLeitura} />
 
       {/* discussão */}
       <section className="mt-6">

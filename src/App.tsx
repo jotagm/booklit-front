@@ -19,8 +19,8 @@ import VotacaoDetail from "./pages/VotacaoDetail";
 import Profile from "./pages/Profile";
 import ProfileEdit from "./pages/ProfileEdit";
 import NotFound from "./pages/NotFound";
-import ConviteLink from "./pages/ConviteLink";
 import Estante from "./pages/Estante";
+import ConvitePublico from "./pages/ConvitePublico";
 import LeitorPerfil from "./pages/LeitorPerfil";
 
 export default function App() {
@@ -52,9 +52,8 @@ export default function App() {
           }
         />
 
-        {/* Link de convite: público (a prévia funciona sem conta) e não redireciona quem está
-            logado — a pessoa logada também precisa ver a tela para confirmar a entrada. */}
-        <Route path="/convite/:codigo" element={<ConviteLink />} />
+        {/* Link de convite: público, funciona logado ou não (a página decide o que oferecer) */}
+        <Route path="/convite/:codigo" element={<ConvitePublico />} />
 
         {/* Fluxo de criação de clube usa o próprio AuthLayout/telas cheias (sem bottom nav) */}
         <Route element={<RequireAuth />}>

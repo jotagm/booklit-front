@@ -1,14 +1,14 @@
 import { api } from "./client";
 import type { PerfilRequest, PerfilResponse, UsuarioRequest, UsuarioResponse, UsuarioId } from "./types";
 
-// "Quem sou eu": o dono do token.
-export async function buscarUsuarioAtual(): Promise<UsuarioResponse> {
-  const { data } = await api.get<UsuarioResponse>("/usuarios/me");
+export async function buscarUsuarioPorId(id: UsuarioId): Promise<UsuarioResponse> {
+  const { data } = await api.get<UsuarioResponse>(`/usuarios/${id}`);
   return data;
 }
 
-export async function buscarUsuarioPorId(id: UsuarioId): Promise<UsuarioResponse> {
-  const { data } = await api.get<UsuarioResponse>(`/usuarios/${id}`);
+// Usuário dono do token atual.
+export async function buscarUsuarioAtual(): Promise<UsuarioResponse> {
+  const { data } = await api.get<UsuarioResponse>("/usuarios/me");
   return data;
 }
 
