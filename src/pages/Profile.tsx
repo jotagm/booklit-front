@@ -7,6 +7,7 @@ import { buscarRegistroPorLeituraEUsuario } from "../api/registros";
 import Avatar from "../components/Avatar";
 import { Spinner } from "../components/Feedback";
 import { paraDate, sequenciaDeSemanas } from "../utils/date";
+import versao from "../../version.json";
 import { buscarPerfil } from "../api/usuarios";
 import type { PerfilResponse } from "../api/types";
 import PerfilCorpo, { membroDesde } from "../components/PerfilCorpo";
@@ -166,6 +167,7 @@ export default function Profile() {
               </button>
             </div>
           </section>
+          <p className="text-center text-xs text-muted-500">Booklit v{versao.version}</p>
         </div>
       </div>
     </div>
