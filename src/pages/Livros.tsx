@@ -1,9 +1,11 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import type { GoogleBooksItem } from "../api/types";
 import { useBuscaDeLivros } from "../hooks/useBuscaDeLivros";
 import { CampoDeBuscaLivros, CapaDoLivro, SemResultados, anoDe, fichaDoLivro } from "../components/BuscaDeLivros";
 import Modal from "../components/Modal";
 import { Spinner, ErrorBanner } from "../components/Feedback";
+import { EscolhaDeStatus } from "../components/estante/AdicionarNaEstante";
 
 // Tela de explorar o catálogo fora dos fluxos de criar leitura e sugerir livro — que até
 // aqui eram os dois únicos lugares do app com busca de livros.
@@ -15,7 +17,7 @@ export default function Livros() {
     <div className="mx-auto w-full max-w-6xl px-4 pb-10 pt-6 lg:px-10 lg:pt-10">
       <h1 className="mb-1 font-serif text-[28px] font-bold text-ink-900 lg:text-4xl">livros</h1>
       <p className="mb-6 text-sm text-muted-600">
-        procure por título, autor ou ISBN para decidir a próxima leitura do clube
+        procure por título, autor ou ISBN — para a próxima leitura do clube ou para a sua estante
       </p>
 
       <div className="max-w-2xl">
@@ -100,6 +102,7 @@ export default function Livros() {
 
 function DetalheDoLivro({ item }: { item: GoogleBooksItem }) {
   const volume = item.volumeInfo;
+  const [adicionado, setAdicionado] = useState(false);
 
   return (
     <div>
@@ -122,6 +125,28 @@ function DetalheDoLivro({ item }: { item: GoogleBooksItem }) {
           {volume.description.replace(/<[^>]*>/g, "")}
         </p>
       )}
+
+      <div className="mt-5 border-t border-ink-800/10 pt-4">
+        {adicionado ? (
+          <p className="text-sm font-semibold text-brand-600">
+            na sua estante ✓{" "}
+            <Link to="/estante" className="underline">
+              ver estante
+            </Link>
+          </p>
+        ) : (
+          <EscolhaDeStatus
+            livro={{
+              livroGoogleId: item.id,
+              livroTitulo: volume.title,
+              livroAutor: volume.authors?.join(", ") ?? null,
+              livroCapaUrl: volume.imageLinks?.thumbnail?.replace(/^http:/, "https:") ?? null,
+              paginas: volume.pageCount ?? null,
+            }}
+            onAdicionado={() => setAdicionado(true)}
+          />
+        )}
+      </div>
 
       {volume.infoLink && (
         <a

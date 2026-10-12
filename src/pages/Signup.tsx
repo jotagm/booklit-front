@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import AuthLayout from "../layouts/AuthLayout";
 import { TextField } from "../components/TextField";
 import Button from "../components/Button";
@@ -12,6 +12,7 @@ import AuthTabs from "../components/AuthTabs";
 export default function Signup() {
   const { cadastrar } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation() as { state?: { from?: { pathname: string } } };
 
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
@@ -25,7 +26,7 @@ export default function Signup() {
     setEnviando(true);
     try {
       await cadastrar(nome, email, senha);
-      navigate("/clubes", { replace: true });
+      navigate(location.state?.from?.pathname ?? "/clubes", { replace: true });
     } catch (err) {
       setErro(extrairMensagemErro(err, "Não foi possível criar sua conta."));
     } finally {
@@ -77,7 +78,7 @@ export default function Signup() {
 
         <p className="text-center text-sm text-muted-600">
           já tem conta?{" "}
-          <Link to="/entrar" className="font-semibold text-brand-600">
+          <Link to="/entrar" state={location.state} className="font-semibold text-brand-600">
             entrar
           </Link>
         </p>

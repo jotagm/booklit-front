@@ -3,10 +3,12 @@ import { useAuth } from "../auth/AuthContext";
 import { usePainel } from "../hooks/usePainel";
 import type { Evento, Prazo, TipoEvento } from "../hooks/usePainel";
 import ClubCard from "../components/ClubCard";
+import MeusConvites from "../components/MeusConvites";
 import BookCover from "../components/BookCover";
 import ProgressBar from "../components/ProgressBar";
 import MiniCalendar from "../components/MiniCalendar";
 import Avatar from "../components/Avatar";
+import FeedAtividade from "../components/FeedAtividade";
 import Button from "../components/Button";
 import { Spinner, ErrorBanner, EmptyState } from "../components/Feedback";
 import { rotuloPrazo, tempoRelativo } from "../utils/date";
@@ -61,7 +63,6 @@ export default function ClubList() {
   // O carrossel do topo mostra destaques variados (um por clube + tipo de evento);
   // a lista lateral mostra a ordem cronológica pura.
   const novidades = destaques(semRepetidos(painel?.eventos ?? []));
-  const atividade = semRepetidos(painel?.eventos ?? []).slice(0, 6);
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 pb-10 pt-6 lg:px-10 lg:pt-10">
@@ -83,10 +84,12 @@ export default function ClubList() {
         </Link>
         {usuario && (
           <Link to="/perfil" className="lg:hidden" aria-label="perfil">
-            <Avatar nome={usuario.nome} size="md" />
+            <Avatar nome={usuario.nome} usuarioId={usuario.id} size="md" />
           </Link>
         )}
       </header>
+
+      <MeusConvites />
 
       {erro && <ErrorBanner mensagem={erro} />}
       {!erro && painel === null && <Spinner label="carregando seus clubes..." />}
@@ -94,7 +97,7 @@ export default function ClubList() {
       {painel !== null && painel.clubes.length === 0 && (
         <EmptyState
           titulo="Você ainda não tem clubes"
-          descricao="Crie um clube novo ou aceite um convite para começar a ler em grupo."
+          descricao="Crie um clube novo ou peça o link de convite para quem já tem um clube."
           acao={
             <Link to="/clubes/novo">
               <Button>criar meu primeiro clube</Button>
@@ -200,30 +203,9 @@ export default function ClubList() {
               </section>
             )}
 
-            {atividade.length > 0 && (
-              <section className="order-6">
-                <h2 className="section-label">atividade recente</h2>
-                <ul className="card divide-y divide-ink-800/10">
-                  {atividade.map((evento) => (
-                    <li key={`atividade-${evento.id}`}>
-                      <Link to={evento.para} className="flex gap-3 px-4 py-3.5 hover:bg-ink-800/[0.03]">
-                        {evento.autor ? (
-                          <Avatar nome={evento.autor} size="sm" />
-                        ) : (
-                          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-50 text-xs">
-                            {EMOJI_POR_EVENTO[evento.tipo]}
-                          </span>
-                        )}
-                        <div className="min-w-0">
-                          <p className="text-sm leading-snug text-ink-800">{evento.titulo}</p>
-                          <p className="mt-0.5 text-xs text-muted-500">{tempoRelativo(evento.data)}</p>
-                        </div>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            )}
+            <div className="order-6">
+              <FeedAtividade limite={20} />
+            </div>
           </div>
         </div>
       )}

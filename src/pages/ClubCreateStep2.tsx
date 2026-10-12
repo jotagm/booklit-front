@@ -6,6 +6,7 @@ import { extrairMensagemErro } from "../api/client";
 import { agoraMaisDias, paraLocalDateTimeIso } from "../utils/date";
 import Button from "../components/Button";
 import { ErrorBanner } from "../components/Feedback";
+import LinkDeConvite from "../components/LinkDeConvite";
 
 interface ConviteEnviado {
   email: string;
@@ -65,8 +66,14 @@ export default function ClubCreateStep2() {
         <p className="mt-1 text-sm text-muted-600">clube criado — convide os membros</p>
       </div>
 
-      <div className="card mt-6 p-4">
-        <p className="field-label">convidar por e-mail</p>
+      {clubeId && (
+        <div className="mt-6">
+          <LinkDeConvite clubeId={clubeId} nomeClube={nomeClube} />
+        </div>
+      )}
+
+      <div className="card mt-4 p-4">
+        <p className="field-label">ou convide por e-mail</p>
         <form onSubmit={convidar} className="mt-1 flex gap-2">
           <input
             type="email"
@@ -80,7 +87,9 @@ export default function ClubCreateStep2() {
             enviar
           </Button>
         </form>
-        <p className="mt-2 text-xs text-muted-500">o convite expira em 7 dias.</p>
+        <p className="mt-2 text-xs text-muted-500">
+          o convite aparece para a pessoa quando ela entrar no Booklit com esse e-mail · expira em 7 dias
+        </p>
 
         {erro && (
           <div className="mt-3">

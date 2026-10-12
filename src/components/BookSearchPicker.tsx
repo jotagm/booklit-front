@@ -13,6 +13,8 @@ export interface LivroSelecionado {
   livroCapaUrl: string | null;
   // Vem do Google quando disponível e serve para pré-preencher a meta em páginas.
   paginas?: number | null;
+  // Usado pela estante pessoal; os fluxos do clube ignoram.
+  livroAutor?: string | null;
 }
 
 // Busca livros na Google Books API (via proxy do backend) e permite escolher um.
@@ -72,6 +74,7 @@ export default function BookSearchPicker({
                         livroTitulo: volume.title,
                         livroCapaUrl: volume.imageLinks?.thumbnail?.replace(/^http:/, "https:") ?? null,
                         paginas: volume.pageCount ?? null,
+                        livroAutor: volume.authors?.join(", ") ?? null,
                       })
                     }
                     className={`flex w-full items-center gap-3 rounded-xl border bg-cream-50 px-3 py-2 text-left transition-colors hover:border-brand-400 ${

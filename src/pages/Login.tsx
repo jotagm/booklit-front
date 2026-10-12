@@ -73,7 +73,7 @@ export default function Login() {
 
         <p className="text-center text-sm text-muted-600">
           não tem conta?{" "}
-          <Link to="/cadastro" className="font-semibold text-brand-600">
+          <Link to="/cadastro" state={location.state} className="font-semibold text-brand-600">
             criar
           </Link>
         </p>

@@ -1,13 +1,14 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import Avatar from "../components/Avatar";
-import { IconeClubes, IconeExplorar, IconeLeituras, IconePerfil, Logo } from "../components/NavIcons";
+import { IconeClubes, IconeEstante, IconeExplorar, IconeLeituras, IconePerfil, Logo } from "../components/NavIcons";
 
 // Duas formas do mesmo shell, como no mock.pdf: sidebar fixa no desktop (lg+)
 // e barra inferior no mobile.
 const abas = [
   { to: "/clubes", label: "clubes", labelLongo: "meus clubes", icon: IconeClubes },
   { to: "/leituras", label: "leituras", labelLongo: "leituras ativas", icon: IconeLeituras },
+  { to: "/estante", label: "estante", labelLongo: "minha estante", icon: IconeEstante },
   { to: "/livros", label: "livros", labelLongo: "explorar livros", icon: IconeExplorar },
   { to: "/perfil", label: "perfil", labelLongo: "perfil", icon: IconePerfil },
 ];
@@ -53,7 +54,7 @@ export default function AppLayout() {
 
         {usuario && (
           <div className="mt-auto flex items-center gap-3 border-t border-ink-800/10 pt-5">
-            <Avatar nome={usuario.nome} size="md" />
+            <Avatar nome={usuario.nome} usuarioId={usuario.id} size="md" />
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-ink-900">{usuario.nome}</p>
               <button
@@ -78,7 +79,7 @@ export default function AppLayout() {
               key={to}
               to={to}
               className={({ isActive }) =>
-                `flex flex-col items-center gap-1 rounded-xl px-4 py-1.5 text-[11px] font-medium ${
+                `flex flex-col items-center gap-1 rounded-xl px-2 py-1.5 text-[11px] font-medium sm:px-4 ${
                   isActive ? "text-brand-600" : "text-muted-500"
                 }`
               }

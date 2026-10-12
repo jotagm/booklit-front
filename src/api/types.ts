@@ -43,7 +43,38 @@ export interface UsuarioResponse {
   id: UsuarioId;
   nome: string;
   email: string;
+  bio?: string | null;
   createdAt: ISODateTime;
+}
+
+export interface PerfilRequest {
+  nome: string;
+  bio?: string | null;
+}
+export interface LivroDoPerfil {
+  titulo: string;
+  autor?: string | null;
+  capaUrl?: string | null;
+  paginaAtual?: number | null;
+  totalPaginas?: number | null;
+}
+export interface ClubeEmComum {
+  id: UUID;
+  nome: string;
+}
+export interface PerfilResponse {
+  id: UsuarioId;
+  nome: string;
+  bio?: string | null;
+  membroDesde?: ISODateTime | null;
+  ehVoce: boolean;
+  ano: number;
+  lidosNoAno: number;
+  metaLivros?: number | null;
+  totalLidos: number;
+  lendoAgora: LivroDoPerfil[];
+  ultimosLidos: LivroDoPerfil[];
+  clubes: ClubeEmComum[];
 }
 
 // ---- tema ----
@@ -105,6 +136,59 @@ export interface ConviteResponse {
   createdAt: ISODateTime;
 }
 
+// ---- link de convite ----
+export interface ConviteLinkResponse {
+  codigo: string;
+  url: string;
+}
+// Prévia pública do link: o que o convidado vê antes de ter conta.
+export interface ConvitePreviewResponse {
+  codigo: string;
+  nomeClube: string;
+  descricao: string | null;
+  nomeLider: string | null;
+  totalMembros: number;
+  temas: string[];
+  leituraAtual: { livroTitulo: string; livroCapaUrl: string | null } | null;
+}
+
+// ---- estante pessoal ----
+export type StatusLeituraPessoal = "QUERO_LER" | "LENDO" | "LIDO" | "ABANDONADO";
+export type ISODate = string; // LocalDate, ex: "2026-10-10"
+
+export interface LeituraPessoalRequest {
+  livroGoogleId: string;
+  livroTitulo: string;
+  livroAutor?: string | null;
+  livroCapaUrl?: string | null;
+  totalPaginas?: number | null;
+  status?: StatusLeituraPessoal;
+}
+export interface LeituraPessoalResponse {
+  id: UUID;
+  livroGoogleId: string;
+  livroTitulo: string;
+  livroAutor: string | null;
+  livroCapaUrl: string | null;
+  status: StatusLeituraPessoal;
+  totalPaginas: number | null;
+  paginaAtual: number;
+  percentual: number | null;
+  nota: number | null;
+  resenha: string | null;
+  dataInicio: ISODate | null;
+  dataFim: ISODate | null;
+  clubeOrigemId: UUID | null;
+  updatedAt: ISODateTime;
+}
+export interface EstanteResumoResponse {
+  ano: number;
+  metaLivros: number | null;
+  lidosNoAno: number;
+  lendo: number;
+  queroLer: number;
+}
+
 // ---- leitura do clube ----
 export interface LeituraClubeRequest {
   clubeId: UUID;
@@ -115,6 +199,8 @@ export interface LeituraClubeRequest {
   valorMeta: number;
   dataInicio: ISODateTime;
   dataFim: ISODateTime;
+  // Opcional: playlist/álbum/podcast/audiobook do Spotify (open.spotify.com).
+  spotifyUrl?: string | null;
 }
 export interface LeituraClubeResponse {
   id: UUID;
@@ -127,6 +213,8 @@ export interface LeituraClubeResponse {
   valorMeta: number;
   dataInicio: ISODateTime;
   dataFim: ISODateTime;
+  // Link canônico do Spotify (https://open.spotify.com/<tipo>/<id>) ou null.
+  spotifyUrl: string | null;
 }
 
 // ---- registro de progresso ----
@@ -160,7 +248,8 @@ export interface VotacaoResponse {
 
 export interface OpcaoVotoRequest {
   votacaoId: UUID;
-  sugeridoPorId: UsuarioId;
+  // Ignorado pelo backend (quem sugere é sempre o usuário autenticado); mantido por compatibilidade.
+  sugeridoPorId?: UsuarioId;
   livroGoogleId: string;
   livroTitulo: string;
   livroCapaUrl?: string | null;
@@ -173,12 +262,15 @@ export interface OpcaoVotoResponse {
   livroGoogleId: string;
   livroTitulo: string;
   livroCapaUrl: string | null;
+  // Quantos membros do clube têm este livro no "quero ler" da estante pessoal.
+  membrosQueremLer: number;
 }
 
 export interface VotoRequest {
   votacaoId: UUID;
   opcaoVotoId: UUID;
-  usuarioId: UsuarioId;
+  // Ignorado pelo backend (o voto é sempre do usuário autenticado); mantido por compatibilidade.
+  usuarioId?: UsuarioId;
 }
 export interface VotoResponse {
   id: UUID;
@@ -245,4 +337,39 @@ export interface ErroResponse {
   status: number;
   mensagem: string;
   timestamp: ISODateTime;
+}
+
+// ---- feed e reações ----
+export type TipoReacao = "CURTIR" | "FOGO" | "PALMAS";
+export type TipoFeed =
+  | "PROGRESSO"
+  | "CONCLUIU"
+  | "COMENTARIO"
+  | "LEITURA_INICIADA"
+  | "VOTACAO_ABERTA"
+  | "VOTACAO_ENCERRADA"
+  | "MEMBRO_ENTROU";
+export interface FeedItemResponse {
+  id: string;
+  tipo: TipoFeed;
+  clubeId: UUID;
+  clubeNome: string;
+  usuarioId?: UsuarioId | null;
+  usuarioNome?: string | null;
+  ehVoce: boolean;
+  quando: ISODateTime;
+  livroTitulo?: string | null;
+  livroCapaUrl?: string | null;
+  valorAtual?: number | null;
+  valorMeta?: number | null;
+  unidade?: string | null;
+  texto?: string | null;
+  leituraId?: UUID | null;
+  reacoes: Partial<Record<TipoReacao, number>>;
+  minhaReacao?: TipoReacao | null;
+}
+export interface ReacoesResponse {
+  alvoId: string;
+  reacoes: Partial<Record<TipoReacao, number>>;
+  minhaReacao?: TipoReacao | null;
 }

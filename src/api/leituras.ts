@@ -60,3 +60,9 @@ export async function buscarLivrosGoogle(
   });
   return data;
 }
+
+// Define (ou remove, com url vazia) o link do Spotify da leitura. Só o líder.
+export async function definirSpotifyDaLeitura(id: UUID, url: string | null): Promise<LeituraClubeResponse> {
+  const { data } = await api.put<LeituraClubeResponse>(`/leituras/${id}/spotify`, { url });
+  return data;
+}

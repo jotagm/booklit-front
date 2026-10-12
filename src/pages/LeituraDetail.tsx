@@ -18,6 +18,7 @@ import ProgressBar from "../components/ProgressBar";
 import Avatar from "../components/Avatar";
 import Button from "../components/Button";
 import CommentThread from "../components/CommentThread";
+import SpotifyDaLeitura from "../components/SpotifyDaLeitura";
 import { formatarData } from "../utils/date";
 import { rotuloTipoMeta } from "../utils/format";
 
@@ -189,8 +190,10 @@ export default function LeituraDetail() {
             .sort((a, b) => b.valorAtual - a.valorAtual)
             .map((r) => (
               <li key={r.id} className="flex items-center gap-3 px-4 py-3">
-                <Avatar nome={r.nomeUsuario} size="sm" />
-                <span className="w-28 shrink-0 truncate text-sm text-ink-900">{r.nomeUsuario}</span>
+                <Link to={`/leitores/${r.usuarioId}`} className="flex w-40 shrink-0 items-center gap-3 hover:opacity-80">
+                  <Avatar nome={r.nomeUsuario} usuarioId={r.usuarioId} size="sm" />
+                  <span className="truncate text-sm text-ink-900">{r.nomeUsuario}</span>
+                </Link>
                 <div className="flex-1">
                   <ProgressBar atual={r.valorAtual} meta={leitura.valorMeta} tone="muted" />
                 </div>
@@ -204,6 +207,8 @@ export default function LeituraDetail() {
           )}
         </ul>
       </section>
+
+      <SpotifyDaLeitura leitura={leitura} souLider={souLider} onAtualizada={setLeitura} />
 
       {/* discussão */}
       <section className="mt-6">

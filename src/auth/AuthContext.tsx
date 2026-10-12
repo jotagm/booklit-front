@@ -1,9 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { login as apiLogin, criarConta as apiCriarConta } from "../api/auth";
-import { buscarUsuarioPorEmail, atualizarUsuario as apiAtualizarUsuario } from "../api/usuarios";
+import { buscarUsuarioAtual, atualizarUsuario as apiAtualizarUsuario, editarPerfil as apiEditarPerfil } from "../api/usuarios";
 import { getToken, registerUnauthorizedHandler, setToken } from "../api/client";
-import type { UsuarioRequest, UsuarioResponse } from "../api/types";
+import type { PerfilRequest, UsuarioRequest, UsuarioResponse } from "../api/types";
 
 // A chave é versionada de propósito. Sessões abertas antes da troca do id de usuário
 // (UUID -> integer) têm um id que a API não aceita mais; ignorá-las faz o AuthProvider
@@ -17,6 +17,8 @@ interface AuthContextValue {
   cadastrar: (nome: string, email: string, senha: string) => Promise<void>;
   sair: () => void;
   atualizarPerfil: (dados: UsuarioRequest) => Promise<void>;
+  /** Nome e bio (o que os outros leitores veem): não pede senha. */
+  editarPerfilPublico: (dados: PerfilRequest) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -66,7 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const { token } = await apiLogin({ email, senha });
         setToken(token);
-        const dadosUsuario = await buscarUsuarioPorEmail(email);
+        const dadosUsuario = await buscarUsuarioAtual();
         persistir(dadosUsuario);
       } finally {
         setCarregando(false);
@@ -92,14 +94,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async (dados: UsuarioRequest) => {
       if (!usuario) return;
       const atualizado = await apiAtualizarUsuario(usuario.id, dados);
+      // O e-mail é o subject do JWT: trocá-lo invalida o token atual. Como o formulário
+      // já tem a senha, reautentica na hora em vez de derrubar a sessão no próximo request.
+      if (atualizado.email !== usuario.email) {
+        const { token } = await apiLogin({ email: atualizado.email, senha: dados.senha });
+        setToken(token);
+      }
       persistir(atualizado);
     },
     [usuario, persistir]
   );
 
+  const editarPerfilPublico = useCallback(
+    async (dados: PerfilRequest) => {
+      persistir(await apiEditarPerfil(dados));
+    },
+    [persistir]
+  );
+
   const value = useMemo<AuthContextValue>(
-    () => ({ usuario, carregando, entrar, cadastrar, sair, atualizarPerfil }),
-    [usuario, carregando, entrar, cadastrar, sair, atualizarPerfil]
+    () => ({ usuario, carregando, entrar, cadastrar, sair, atualizarPerfil, editarPerfilPublico }),
+    [usuario, carregando, entrar, cadastrar, sair, atualizarPerfil, editarPerfilPublico]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

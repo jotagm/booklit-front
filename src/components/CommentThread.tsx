@@ -61,7 +61,7 @@ export default function CommentThread({
   return (
     <div className={ehResposta ? "ml-9" : ""}>
       <div className="flex gap-3">
-        <Avatar nome={comentario.usuarioNome} size="sm" />
+        <Avatar nome={comentario.usuarioNome} usuarioId={comentario.usuarioId} size="sm" />
         <div className="min-w-0 flex-1">
           <div className="rounded-xl bg-ink-800/[0.04] px-3 py-2">
             <div className="flex items-baseline justify-between gap-2">

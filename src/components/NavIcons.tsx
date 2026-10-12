@@ -33,6 +33,25 @@ export function IconeLeituras({ ativo = false }: { ativo?: boolean }) {
   );
 }
 
+export function IconeEstante({ ativo = false }: { ativo?: boolean }) {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={ativo ? 2 : 1.6}
+      aria-hidden="true"
+    >
+      <path d="M3 20h18" strokeLinecap="round" />
+      <rect x="5" y="6" width="3" height="14" rx="0.5" strokeLinejoin="round" />
+      <rect x="9" y="4" width="3" height="16" rx="0.5" strokeLinejoin="round" />
+      <path d="M14 7.5l2.9-.8 3.4 12.6-2.9.8z" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export function IconeExplorar({ ativo = false }: { ativo?: boolean }) {
   return (
     <svg

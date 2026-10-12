@@ -9,6 +9,7 @@ import { TextField } from "../components/TextField";
 import Button from "../components/Button";
 import { ErrorBanner } from "../components/Feedback";
 import { agoraMaisDias, paraInputDateTimeLocal, paraLocalDateTimeIso } from "../utils/date";
+import { analisarLinkSpotify } from "../utils/spotify";
 
 export default function LeituraCreate() {
   const { clubeId } = useParams<{ clubeId: string }>();
@@ -19,6 +20,7 @@ export default function LeituraCreate() {
   const [valorMeta, setValorMeta] = useState(200);
   const [dataInicio, setDataInicio] = useState(paraInputDateTimeLocal(new Date()));
   const [dataFim, setDataFim] = useState(paraInputDateTimeLocal(agoraMaisDias(30)));
+  const [spotifyUrl, setSpotifyUrl] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
@@ -34,6 +36,10 @@ export default function LeituraCreate() {
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     if (!clubeId || !livro) return;
+    if (spotifyUrl.trim() && !analisarLinkSpotify(spotifyUrl)) {
+      setErro("O link do Spotify não parece válido — cole o link de uma playlist, álbum, podcast ou audiobook.");
+      return;
+    }
     setErro(null);
     setEnviando(true);
     try {
@@ -46,6 +52,7 @@ export default function LeituraCreate() {
         valorMeta,
         dataInicio: paraLocalDateTimeIso(new Date(dataInicio)),
         dataFim: paraLocalDateTimeIso(new Date(dataFim)),
+        spotifyUrl: spotifyUrl.trim() || null,
       });
       navigate(`/clubes/${clubeId}`, { replace: true });
     } catch (err) {
@@ -123,6 +130,15 @@ export default function LeituraCreate() {
             required
           />
         </div>
+
+        <TextField
+          label="trilha no Spotify (opcional)"
+          type="url"
+          placeholder="https://open.spotify.com/playlist/..."
+          hint="playlist, álbum, podcast ou audiobook — vira um player na página da leitura"
+          value={spotifyUrl}
+          onChange={(e) => setSpotifyUrl(e.target.value)}
+        />
 
         <Button type="submit" fullWidth loading={enviando} disabled={!livro}>
           começar leitura

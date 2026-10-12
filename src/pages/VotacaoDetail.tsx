@@ -12,6 +12,7 @@ import Button from "../components/Button";
 import Modal from "../components/Modal";
 import BookSearchPicker, { type LivroSelecionado } from "../components/BookSearchPicker";
 import { formatarData } from "../utils/date";
+import SugestoesDaEstante from "../components/estante/SugestoesDaEstante";
 
 export default function VotacaoDetail() {
   const { votacaoId } = useParams<{ votacaoId: string }>();
@@ -185,6 +186,12 @@ export default function VotacaoDetail() {
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold text-ink-900">{opcao.livroTitulo}</p>
                     <p className="text-xs text-muted-500">sugerido por {opcao.nomeSugeridoPor}</p>
+                    {opcao.membrosQueremLer > 0 && (
+                      <p className="mt-0.5 text-[11px] font-semibold text-brand-600">
+                        📚 {opcao.membrosQueremLer}{" "}
+                        {opcao.membrosQueremLer === 1 ? "membro quer" : "membros querem"} ler
+                      </p>
+                    )}
                     <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-ink-800/10">
                       <div
                         className="h-full rounded-full bg-brand-500 transition-all"
@@ -220,6 +227,11 @@ export default function VotacaoDetail() {
       )}
 
       <Modal aberto={modalSugestao} onFechar={() => setModalSugestao(false)} titulo="Sugerir livro">
+        <SugestoesDaEstante
+          selecionado={livroSugerido}
+          onSelecionar={setLivroSugerido}
+          ignorar={opcoes.map((o) => o.livroGoogleId)}
+        />
         <BookSearchPicker selecionado={livroSugerido} onSelecionar={setLivroSugerido} />
         <Button
           fullWidth

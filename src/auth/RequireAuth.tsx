@@ -15,6 +15,8 @@ export default function RequireAuth() {
 
 export function RedirectIfAuth({ children }: { children: ReactNode }) {
   const { usuario } = useAuth();
-  if (usuario) return <Navigate to="/clubes" replace />;
+  const location = useLocation() as { state?: { from?: { pathname: string } } };
+  // Respeita o destino pedido (ex: o link de convite que mandou a pessoa logar).
+  if (usuario) return <Navigate to={location.state?.from?.pathname ?? "/clubes"} replace />;
   return <>{children}</>;
 }

@@ -7,6 +7,9 @@ import { buscarRegistroPorLeituraEUsuario } from "../api/registros";
 import Avatar from "../components/Avatar";
 import { Spinner } from "../components/Feedback";
 import { paraDate, sequenciaDeSemanas } from "../utils/date";
+import { buscarPerfil } from "../api/usuarios";
+import type { PerfilResponse } from "../api/types";
+import PerfilCorpo, { membroDesde } from "../components/PerfilCorpo";
 
 interface Estatisticas {
   clubes: number;
@@ -20,6 +23,7 @@ export default function Profile() {
   const { usuario, sair } = useAuth();
   const navigate = useNavigate();
   const [stats, setStats] = useState<Estatisticas | null>(null);
+  const [perfil, setPerfil] = useState<PerfilResponse | null>(null);
   const [notificacoes, setNotificacoes] = useState(() => localStorage.getItem(CHAVE_NOTIFICACOES) !== "false");
 
   const carregarStats = useCallback(async () => {
@@ -52,6 +56,10 @@ export default function Profile() {
     carregarStats();
   }, [carregarStats]);
 
+  useEffect(() => {
+    if (usuario) buscarPerfil(usuario.id).then(setPerfil).catch(() => setPerfil(null));
+  }, [usuario]);
+
   function alternarNotificacoes() {
     setNotificacoes((prev) => {
       const novo = !prev;
@@ -79,9 +87,13 @@ export default function Profile() {
       <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[320px_minmax(0,1fr)] lg:items-start lg:gap-8">
         {/* cartão do usuário */}
         <div className="card flex flex-col items-center px-6 py-7 text-center">
-          <Avatar nome={usuario.nome} size="lg" />
+          <Avatar nome={usuario.nome} usuarioId={usuario.id} size="lg" />
           <h2 className="mt-4 font-serif text-xl font-bold text-ink-900">{usuario.nome}</h2>
           <p className="text-sm text-muted-600">{usuario.email}</p>
+          {usuario.bio && <p className="mt-3 text-sm text-ink-800">{usuario.bio}</p>}
+          {membroDesde(usuario.createdAt) && (
+            <p className="mt-1.5 text-xs text-muted-500">{membroDesde(usuario.createdAt)}</p>
+          )}
 
           <div className="mt-5 w-full border-t border-ink-800/10 pt-4">
             {stats === null ? (
@@ -105,6 +117,8 @@ export default function Profile() {
 
         {/* conta + preferências */}
         <div className="flex flex-col gap-6">
+          {perfil && <PerfilCorpo perfil={perfil} />}
+
           <section>
             <h2 className="section-label">conta</h2>
             <div className="card divide-y divide-ink-800/10">
