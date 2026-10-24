@@ -5,33 +5,37 @@ import { TextField } from "./TextField";
 import { ErrorBanner } from "./Feedback";
 import { extrairMensagemErro } from "../api/client";
 import { segundosParaReenviar, solicitarCodigo, verificarCodigo } from "../api/otp";
-import type { FinalidadeOtp } from "../api/types";
+import type { DesafioOtpResponse, FinalidadeOtp } from "../api/types";
 
 const INTERVALO_REENVIO_PADRAO = 60;
 
 interface Props {
   email: string;
-  finalidade: FinalidadeOtp;
-  /** Chamado com o e-mail provado quando o código confere. */
-  onVerificado: (email: string) => void;
+  /**
+   * Pede (ou reenvia) o código. Devolve null quando não há mais código a pedir (ex.: o
+   * backend desligou a etapa e o login já concluiu).
+   */
+  solicitar: () => Promise<DesafioOtpResponse | null>;
+  /** Confere o código; resolve quando deu certo, rejeita com a mensagem do backend. */
+  verificar: (desafioId: string, codigo: string) => Promise<void>;
+  /** Desafio já emitido por quem abriu a tela (ex.: o POST /auth/login): não pede de novo ao montar. */
+  desafioInicial?: DesafioOtpResponse;
   onCancelar?: () => void;
 }
 
 /**
- * Bloco reutilizável de "digite o código que enviamos por e-mail".
- *
- * Pede o código ao montar, confere, e controla o "reenviar" pelo Retry-After do backend.
- * Ainda não está ligado a nenhum fluxo: entra no cadastro, na recuperação de senha ou no
- * step-up do login quando o backend tiver esses fluxos e o envio de e-mail (SES) ligado.
+ * Bloco de "digite o código que enviamos por e-mail": confere, e controla o "reenviar"
+ * pelo Retry-After do backend. Quem usa decide de onde vem o código (login, verificação
+ * de e-mail...) pelas funções `solicitar` e `verificar`.
  */
-export default function VerificacaoPorCodigo({ email, finalidade, onVerificado, onCancelar }: Props) {
-  const [desafioId, setDesafioId] = useState<string | null>(null);
+export default function VerificacaoPorCodigo({ email, solicitar, verificar, desafioInicial, onCancelar }: Props) {
+  const [desafioId, setDesafioId] = useState<string | null>(desafioInicial?.desafioId ?? null);
   const [codigo, setCodigo] = useState("");
   const [erro, setErro] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [verificando, setVerificando] = useState(false);
-  const [segundosParaNovoEnvio, setSegundosParaNovoEnvio] = useState(0);
-  const jaPediu = useRef(false);
+  const [segundosParaNovoEnvio, setSegundosParaNovoEnvio] = useState(desafioInicial ? INTERVALO_REENVIO_PADRAO : 0);
+  const jaPediu = useRef(!!desafioInicial);
 
   useEffect(() => {
     if (segundosParaNovoEnvio <= 0) return;
@@ -43,7 +47,8 @@ export default function VerificacaoPorCodigo({ email, finalidade, onVerificado, 
     setErro(null);
     setEnviando(true);
     try {
-      const desafio = await solicitarCodigo(email, finalidade);
+      const desafio = await solicitar();
+      if (!desafio) return;
       setDesafioId(desafio.desafioId);
       setCodigo("");
       setSegundosParaNovoEnvio(INTERVALO_REENVIO_PADRAO);
@@ -54,7 +59,7 @@ export default function VerificacaoPorCodigo({ email, finalidade, onVerificado, 
     } finally {
       setEnviando(false);
     }
-  }, [email, finalidade]);
+  }, [solicitar]);
 
   // O ref evita o pedido duplo do StrictMode em dev, que esbarraria no limite de 60 s.
   useEffect(() => {
@@ -69,8 +74,7 @@ export default function VerificacaoPorCodigo({ email, finalidade, onVerificado, 
     setErro(null);
     setVerificando(true);
     try {
-      const resultado = await verificarCodigo(desafioId, finalidade, codigo);
-      onVerificado(resultado.email);
+      await verificar(desafioId, codigo);
     } catch (err) {
       setErro(extrairMensagemErro(err, "Código inválido."));
     } finally {
@@ -95,6 +99,7 @@ export default function VerificacaoPorCodigo({ email, finalidade, onVerificado, 
         autoComplete="one-time-code"
         placeholder="000000"
         maxLength={7}
+        autoFocus
         value={codigo}
         onChange={(e) => setCodigo(e.target.value.replace(/[^\d ]/g, ""))}
         className="[&_input]:text-center [&_input]:font-mono [&_input]:text-lg [&_input]:tracking-[0.4em]"
@@ -117,10 +122,20 @@ export default function VerificacaoPorCodigo({ email, finalidade, onVerificado, 
         </Button>
         {onCancelar && (
           <Button type="button" variant="ghost" onClick={onCancelar}>
-            cancelar
+            voltar
           </Button>
         )}
       </div>
     </form>
   );
+}
+
+/** Atalho para o endpoint público de OTP (verificar e-mail, redefinir PIN...). */
+export function codigoPorEmail(email: string, finalidade: Exclude<FinalidadeOtp, "LOGIN">) {
+  return {
+    solicitar: () => solicitarCodigo(email, finalidade),
+    verificar: async (desafioId: string, codigo: string) => {
+      await verificarCodigo(desafioId, finalidade, codigo);
+    },
+  };
 }

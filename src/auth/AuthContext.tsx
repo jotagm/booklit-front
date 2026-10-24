@@ -1,9 +1,15 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { login as apiLogin, criarConta as apiCriarConta } from "../api/auth";
+import { login as apiLogin, criarConta as apiCriarConta, concluirLogin as apiConcluirLogin } from "../api/auth";
 import { buscarUsuarioAtual, atualizarUsuario as apiAtualizarUsuario, editarPerfil as apiEditarPerfil } from "../api/usuarios";
 import { getToken, registerUnauthorizedHandler, setToken } from "../api/client";
-import type { PerfilRequest, UsuarioRequest, UsuarioResponse } from "../api/types";
+import type { DesafioOtpResponse, PerfilRequest, UsuarioRequest, UsuarioResponse } from "../api/types";
+
+/**
+ * Resultado de entrar/cadastrar. Com o código por e-mail ligado no backend, a senha certa
+ * não loga direto: devolve o desafio e a tela pede o código (ver `confirmarCodigo`).
+ */
+export type ResultadoEntrada = { etapa: "concluido" } | { etapa: "codigo"; desafio: DesafioOtpResponse };
 
 // A chave é versionada de propósito. Sessões abertas antes da troca do id de usuário
 // (UUID -> integer) têm um id que a API não aceita mais; ignorá-las faz o AuthProvider
@@ -13,8 +19,11 @@ const USER_KEY = "clube-livro:user:v2";
 interface AuthContextValue {
   usuario: UsuarioResponse | null;
   carregando: boolean;
-  entrar: (email: string, senha: string) => Promise<void>;
-  cadastrar: (nome: string, email: string, senha: string) => Promise<void>;
+  /** Confere a senha. Chamar de novo durante a etapa do código reenvia o código. */
+  entrar: (email: string, senha: string) => Promise<ResultadoEntrada>;
+  cadastrar: (nome: string, email: string, senha: string) => Promise<ResultadoEntrada>;
+  /** Segunda etapa: confere o código do e-mail e abre a sessão. */
+  confirmarCodigo: (desafioId: string, codigo: string) => Promise<void>;
   sair: () => void;
   atualizarPerfil: (dados: UsuarioRequest) => Promise<void>;
   /** Nome e bio (o que os outros leitores veem): não pede senha. */
@@ -64,27 +73,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const entrar = useCallback(
-    async (email: string, senha: string) => {
-      setCarregando(true);
-      try {
-        const { token } = await apiLogin({ email, senha });
-        setToken(token);
-        const dadosUsuario = await buscarUsuarioAtual();
-        persistir(dadosUsuario);
-      } finally {
-        setCarregando(false);
-      }
+  const abrirSessao = useCallback(
+    async (token: string) => {
+      setToken(token);
+      persistir(await buscarUsuarioAtual());
     },
     [persistir]
   );
 
+  const entrar = useCallback(
+    async (email: string, senha: string): Promise<ResultadoEntrada> => {
+      setCarregando(true);
+      try {
+        const resposta = await apiLogin({ email, senha });
+        if (resposta.etapa === "CODIGO" && resposta.desafioId && resposta.expiraEm) {
+          return { etapa: "codigo", desafio: { desafioId: resposta.desafioId, expiraEm: resposta.expiraEm } };
+        }
+        if (!resposta.token) throw new Error("Resposta de login sem token");
+        await abrirSessao(resposta.token);
+        return { etapa: "concluido" };
+      } finally {
+        setCarregando(false);
+      }
+    },
+    [abrirSessao]
+  );
+
+  const confirmarCodigo = useCallback(
+    async (desafioId: string, codigo: string) => {
+      const { token } = await apiConcluirLogin(desafioId, codigo);
+      if (!token) throw new Error("Resposta sem token");
+      await abrirSessao(token);
+    },
+    [abrirSessao]
+  );
+
   const cadastrar = useCallback(
-    async (nome: string, email: string, senha: string) => {
+    async (nome: string, email: string, senha: string): Promise<ResultadoEntrada> => {
       setCarregando(true);
       try {
         await apiCriarConta({ nome, email, senha });
-        await entrar(email, senha);
+        // O primeiro login com código é o que confirma o e-mail da conta nova.
+        return await entrar(email, senha);
       } finally {
         setCarregando(false);
       }
@@ -109,8 +139,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo<AuthContextValue>(
-    () => ({ usuario, carregando, entrar, cadastrar, sair, atualizarPerfil, editarPerfilPublico }),
-    [usuario, carregando, entrar, cadastrar, sair, atualizarPerfil, editarPerfilPublico]
+    () => ({ usuario, carregando, entrar, cadastrar, confirmarCodigo, sair, atualizarPerfil, editarPerfilPublico }),
+    [usuario, carregando, entrar, cadastrar, confirmarCodigo, sair, atualizarPerfil, editarPerfilPublico]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

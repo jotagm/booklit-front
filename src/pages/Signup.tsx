@@ -8,6 +8,8 @@ import { ErrorBanner } from "../components/Feedback";
 import { useAuth } from "../auth/AuthContext";
 import { extrairMensagemErro } from "../api/client";
 import AuthTabs from "../components/AuthTabs";
+import EtapaDoCodigo from "../components/EtapaDoCodigo";
+import type { DesafioOtpResponse } from "../api/types";
 
 export default function Signup() {
   const { cadastrar } = useAuth();
@@ -19,19 +21,41 @@ export default function Signup() {
   const [senha, setSenha] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [desafio, setDesafio] = useState<DesafioOtpResponse | null>(null);
+
+  const irParaDestino = () => navigate(location.state?.from?.pathname ?? "/clubes", { replace: true });
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setErro(null);
     setEnviando(true);
     try {
-      await cadastrar(nome, email, senha);
-      navigate(location.state?.from?.pathname ?? "/clubes", { replace: true });
+      const resultado = await cadastrar(nome, email, senha);
+      if (resultado.etapa === "codigo") {
+        setDesafio(resultado.desafio);
+      } else {
+        irParaDestino();
+      }
     } catch (err) {
       setErro(extrairMensagemErro(err, "Não foi possível criar sua conta."));
     } finally {
       setEnviando(false);
     }
+  }
+
+  // A conta já foi criada: "voltar" leva ao login, não ao formulário (que daria e-mail repetido).
+  if (desafio) {
+    return (
+      <AuthLayout voltarPara="/">
+        <EtapaDoCodigo
+          email={email}
+          senha={senha}
+          desafio={desafio}
+          onConcluido={irParaDestino}
+          onVoltar={() => navigate("/entrar", { state: location.state })}
+        />
+      </AuthLayout>
+    );
   }
 
   return (

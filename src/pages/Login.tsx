@@ -8,6 +8,8 @@ import { ErrorBanner } from "../components/Feedback";
 import { useAuth } from "../auth/AuthContext";
 import { extrairMensagemErro } from "../api/client";
 import AuthTabs from "../components/AuthTabs";
+import EtapaDoCodigo from "../components/EtapaDoCodigo";
+import type { DesafioOtpResponse } from "../api/types";
 
 export default function Login() {
   const { entrar } = useAuth();
@@ -18,20 +20,41 @@ export default function Login() {
   const [senha, setSenha] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [desafio, setDesafio] = useState<DesafioOtpResponse | null>(null);
+
+  const destino = location.state?.from?.pathname ?? "/clubes";
+  const irParaDestino = () => navigate(destino, { replace: true });
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setErro(null);
     setEnviando(true);
     try {
-      await entrar(email, senha);
-      const destino = location.state?.from?.pathname ?? "/clubes";
-      navigate(destino, { replace: true });
+      const resultado = await entrar(email, senha);
+      if (resultado.etapa === "codigo") {
+        setDesafio(resultado.desafio);
+      } else {
+        irParaDestino();
+      }
     } catch (err) {
       setErro(extrairMensagemErro(err, "E-mail ou senha inválidos."));
     } finally {
       setEnviando(false);
     }
+  }
+
+  if (desafio) {
+    return (
+      <AuthLayout voltarPara="/">
+        <EtapaDoCodigo
+          email={email}
+          senha={senha}
+          desafio={desafio}
+          onConcluido={irParaDestino}
+          onVoltar={() => setDesafio(null)}
+        />
+      </AuthLayout>
+    );
   }
 
   return (

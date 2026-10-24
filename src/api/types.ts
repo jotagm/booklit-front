@@ -31,8 +31,15 @@ export interface LoginRequest {
   email: string;
   senha: string;
 }
+/**
+ * `etapa=CONCLUIDO`: veio o `token`. `etapa=CODIGO`: o backend exige o código por e-mail;
+ * veio o desafio e o token sai em `POST /auth/login/codigo`.
+ */
 export interface LoginResponse {
-  token: string;
+  etapa?: "CONCLUIDO" | "CODIGO";
+  token?: string;
+  desafioId?: UUID;
+  expiraEm?: string;
 }
 export interface UsuarioRequest {
   nome: string;
@@ -45,6 +52,8 @@ export interface UsuarioResponse {
   email: string;
   bio?: string | null;
   createdAt: ISODateTime;
+  /** true depois que o código por e-mail foi confirmado (no login ou na verificação). */
+  emailVerificado?: boolean;
 }
 
 // ---- código por e-mail (OTP) — /auth/otp/email ----
