@@ -47,6 +47,18 @@ export interface UsuarioResponse {
   createdAt: ISODateTime;
 }
 
+// ---- código por e-mail (OTP) — /auth/otp/email ----
+/** Espelha `github.jotagm.auth.otp.Finalidade` (auth-core). */
+export type FinalidadeOtp = "LOGIN" | "VERIFICAR_EMAIL" | "REDEFINIR_PIN";
+export interface DesafioOtpResponse {
+  desafioId: UUID;
+  /** Instant em UTC (ex.: "2026-10-23T23:43:29.97Z"), não LocalDateTime. */
+  expiraEm: string;
+}
+export interface OtpVerificadoResponse {
+  email: string;
+}
+
 export interface PerfilRequest {
   nome: string;
   bio?: string | null;

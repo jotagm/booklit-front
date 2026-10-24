@@ -41,6 +41,7 @@ export function extrairMensagemErro(erro: unknown, fallback = "Algo deu errado. 
     if (axiosErro.response?.status === 401) return "Sessão expirada. Entre novamente.";
     if (axiosErro.response?.status === 403) return "Você não tem permissão para fazer isso.";
     if (axiosErro.response?.status === 404) return "Não encontrado.";
+    if (axiosErro.response?.status === 429) return "Muitas tentativas. Aguarde um pouco e tente de novo.";
     if (!axiosErro.response) return "Não foi possível conectar ao servidor.";
   }
   return fallback;
@@ -51,10 +52,20 @@ export function registerUnauthorizedHandler(handler: () => void) {
   onUnauthorized = handler;
 }
 
+// Nas rotas de /auth, 401 é "credencial ou código errado", não "sessão expirada": derrubar
+// a sessão ali deslogaria quem só errou o código de verificação (step-up com sessão aberta).
+function ehRotaDeAutenticacao(url: string | undefined): boolean {
+  return !!url && /^\/?auth\//.test(url);
+}
+
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (axios.isAxiosError(error) && error.response?.status === 401) {
+    if (
+      axios.isAxiosError(error) &&
+      error.response?.status === 401 &&
+      !ehRotaDeAutenticacao(error.config?.url)
+    ) {
       onUnauthorized?.();
     }
     return Promise.reject(error);
