@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { login as apiLogin, criarConta as apiCriarConta, concluirLogin as apiConcluirLogin } from "../api/auth";
+import { verificarCodigo } from "../api/otp";
 import { buscarUsuarioAtual, atualizarUsuario as apiAtualizarUsuario, editarPerfil as apiEditarPerfil } from "../api/usuarios";
 import { getToken, registerUnauthorizedHandler, setToken } from "../api/client";
 import type { DesafioOtpResponse, PerfilRequest, UsuarioRequest, UsuarioResponse } from "../api/types";
@@ -21,7 +22,10 @@ interface AuthContextValue {
   carregando: boolean;
   /** Confere a senha. Chamar de novo durante a etapa do código reenvia o código. */
   entrar: (email: string, senha: string) => Promise<ResultadoEntrada>;
-  cadastrar: (nome: string, email: string, senha: string) => Promise<ResultadoEntrada>;
+  /** Cria a conta. Não abre sessão: quem entra é `confirmarCadastro`, depois do código do e-mail. */
+  cadastrar: (nome: string, email: string, senha: string) => Promise<void>;
+  /** Cadastro: confere o código do e-mail e, se estiver certo, abre a sessão. */
+  confirmarCadastro: (desafioId: string, codigo: string) => Promise<void>;
   /** Segunda etapa: confere o código do e-mail e abre a sessão. */
   confirmarCodigo: (desafioId: string, codigo: string) => Promise<void>;
   sair: () => void;
@@ -108,18 +112,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [abrirSessao]
   );
 
-  const cadastrar = useCallback(
-    async (nome: string, email: string, senha: string): Promise<ResultadoEntrada> => {
-      setCarregando(true);
-      try {
-        await apiCriarConta({ nome, email, senha });
-        // O primeiro login com código é o que confirma o e-mail da conta nova.
-        return await entrar(email, senha);
-      } finally {
-        setCarregando(false);
-      }
+  // Código só no cadastro: depois de criada, a conta confirma o e-mail com o código e já entra
+  // logado. Quem sai e volta entra só com e-mail e senha (o código no login é outra chave do backend).
+  const cadastrar = useCallback(async (nome: string, email: string, senha: string): Promise<void> => {
+    setCarregando(true);
+    try {
+      await apiCriarConta({ nome, email, senha });
+    } finally {
+      setCarregando(false);
+    }
+  }, []);
+
+  const confirmarCadastro = useCallback(
+    async (desafioId: string, codigo: string) => {
+      const { token } = await verificarCodigo(desafioId, "VERIFICAR_EMAIL", codigo);
+      if (!token) throw new Error("Este e-mail já estava confirmado. Entre com seu e-mail e senha.");
+      await abrirSessao(token);
     },
-    [entrar]
+    [abrirSessao]
   );
 
   const atualizarPerfil = useCallback(
@@ -139,8 +149,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo<AuthContextValue>(
-    () => ({ usuario, carregando, entrar, cadastrar, confirmarCodigo, sair, atualizarPerfil, editarPerfilPublico }),
-    [usuario, carregando, entrar, cadastrar, confirmarCodigo, sair, atualizarPerfil, editarPerfilPublico]
+    () => ({
+      usuario,
+      carregando,
+      entrar,
+      cadastrar,
+      confirmarCadastro,
+      confirmarCodigo,
+      sair,
+      atualizarPerfil,
+      editarPerfilPublico,
+    }),
+    [usuario, carregando, entrar, cadastrar, confirmarCadastro, confirmarCodigo, sair, atualizarPerfil, editarPerfilPublico]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

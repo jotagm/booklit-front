@@ -66,6 +66,11 @@ export interface DesafioOtpResponse {
 }
 export interface OtpVerificadoResponse {
   email: string;
+  /**
+   * Só vem na primeira verificação de e-mail de uma conta (o cadastro): acertar o código já
+   * entra logado. Nas demais verificações o campo não existe.
+   */
+  token?: string;
 }
 
 export interface PerfilRequest {
