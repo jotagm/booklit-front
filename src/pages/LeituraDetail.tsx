@@ -27,6 +27,9 @@ function contarComentarios(arvore: ComentarioResponse[]): number {
   return arvore.reduce((n, c) => n + 1 + contarComentarios(c.respostas ?? []), 0);
 }
 
+const achatar = (arvore: ComentarioResponse[]): ComentarioResponse[] =>
+  arvore.flatMap((c) => [c, ...achatar(c.respostas ?? [])]);
+
 const primeiro = (nome: string) => nome.trim().split(/\s+/)[0];
 
 export default function LeituraDetail() {
@@ -40,6 +43,7 @@ export default function LeituraDetail() {
   const [membros, setMembros] = useState<UsuarioClubeResponse[]>([]);
   const [novoComentario, setNovoComentario] = useState("");
   const [enviandoComentario, setEnviandoComentario] = useState(false);
+  const [revelarTodos, setRevelarTodos] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(true);
 
@@ -127,7 +131,14 @@ export default function LeituraDetail() {
   const meuRegistro = registros.find((r) => r.usuarioId === meuId);
   const minhaPosicao = meuRegistro?.valorAtual ?? 0;
   const unidade = leitura.tipoMeta === "PAGINA" ? "pág." : "cap.";
+  const ateA = leitura.tipoMeta === "PAGINA" ? "a pág." : "o cap.";
   const totalComentarios = contarComentarios(comentarios);
+  // Há spoiler escondido? (comentário de outra pessoa escrito mais à frente de onde estou)
+  const temSpoiler =
+    !!meuRegistro &&
+    achatar(comentarios).some(
+      (c) => !c.removido && c.usuarioId !== meuId && c.paginaAutor != null && c.paginaAutor > minhaPosicao
+    );
   const comRegistro = new Set(registros.map((r) => r.usuarioId));
   const naoComecaram = membros.filter((m) => !comRegistro.has(m.usuarioId)).map((m) => primeiro(m.nomeUsuario));
 
@@ -178,7 +189,24 @@ export default function LeituraDetail() {
 
         {/* discussão */}
         <section className="mt-6 flex-1">
-          <h2 className="section-label">discussão · {totalComentarios}</h2>
+          <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 lg:border-b lg:border-ink-800/10 lg:pb-2.5">
+            <h2 className="section-label mb-0">
+              discussão · {totalComentarios}
+              <span className="hidden lg:inline"> {totalComentarios === 1 ? "comentário" : "comentários"}</span>
+            </h2>
+            {temSpoiler && (
+              <p className="text-xs text-muted-500">
+                {revelarTodos ? "mostrando tudo · " : `mostrando até ${ateA} ${minhaPosicao} · `}
+                <button
+                  type="button"
+                  onClick={() => setRevelarTodos((v) => !v)}
+                  className="font-semibold text-brand-600 hover:text-brand-700"
+                >
+                  {revelarTodos ? `só até ${ateA} ${minhaPosicao}` : "ver tudo"}
+                </button>
+              </p>
+            )}
+          </div>
           {comentarios.length === 0 ? (
             <EmptyState titulo="Nenhum comentário ainda" descricao="Seja o primeiro a comentar sobre esta leitura." />
           ) : (
@@ -191,6 +219,7 @@ export default function LeituraDetail() {
                   souLider={souLider}
                   meuProgresso={meuRegistro ? minhaPosicao : null}
                   emCapitulos={leitura.tipoMeta === "CAPITULO"}
+                  revelarTodos={revelarTodos}
                   onResponder={responder}
                   onEditar={editar}
                   onExcluir={excluir}

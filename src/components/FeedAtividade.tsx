@@ -130,6 +130,7 @@ export default function FeedAtividade({
   titulo = "atividade dos seus clubes",
   mostrarClube = true,
   meuUsuarioId = null,
+  classeDoTitulo = "",
   onItens,
 }: {
   clubeId?: UUID;
@@ -138,6 +139,8 @@ export default function FeedAtividade({
   mostrarClube?: boolean;
   /** Para a lista de quem reagiu ("… e você") acompanhar a reação otimista. */
   meuUsuarioId?: number | null;
+  /** Ex.: "lg:hidden" para o rótulo aparecer só no celular. */
+  classeDoTitulo?: string;
   /** Recebe os itens carregados (a home deriva "lendo agora" deles sem buscar de novo). */
   onItens?: (itens: FeedItemResponse[]) => void;
 }) {
@@ -177,7 +180,7 @@ export default function FeedAtividade({
 
   return (
     <section>
-      {titulo && <h2 className="section-label">{titulo}</h2>}
+      {titulo && <h2 className={`section-label ${classeDoTitulo}`}>{titulo}</h2>}
       {erroReacao && <p className="mb-2 text-xs text-red-600">não foi possível reagir agora.</p>}
       <ul className="flex flex-col gap-3">
         {itens.map((item) => (

@@ -13,6 +13,7 @@ import BookCover from "../components/BookCover";
 import ProgressBar from "../components/ProgressBar";
 import Avatar from "../components/Avatar";
 import FeedAtividade from "../components/FeedAtividade";
+import ComposerDaHome from "../components/ComposerDaHome";
 import FacePile from "../components/FacePile";
 import Modal from "../components/Modal";
 import StepperProgresso from "../components/StepperProgresso";
@@ -38,6 +39,8 @@ export default function ClubList() {
   const { painel, erro, recarregar } = usePainel();
   const [feed, setFeed] = useState<FeedItemResponse[]>([]);
   const temNovidade = useNovidades();
+  // Muda a cada comentário publicado pela home, para o feed recarregar e mostrá-lo.
+  const [versaoDoFeed, setVersaoDoFeed] = useState(0);
 
   const primeiroNome = usuario ? usuario.nome.trim().split(/\s+/)[0] : "";
   const lendo = quemEstaLendo(feed);
@@ -129,8 +132,27 @@ export default function ClubList() {
               </Link>
             )}
 
+            {/* Comentar sem sair da home: só no desktop, como no mock 2b. */}
+            {usuario && (
+              <div className="order-3 hidden lg:block">
+                <ComposerDaHome
+                  usuario={usuario}
+                  leituras={painel.clubes.flatMap((c) => (c.leituraAtiva ? [c.leituraAtiva] : []))}
+                  inicial={painel.continuarLeitura?.leitura}
+                  onPublicado={() => setVersaoDoFeed((v) => v + 1)}
+                />
+              </div>
+            )}
+
             <div className="order-4">
-              <FeedAtividade limite={20} titulo="nos seus clubes" meuUsuarioId={usuario?.id ?? null} onItens={setFeed} />
+              <FeedAtividade
+                key={versaoDoFeed}
+                limite={20}
+                titulo="nos seus clubes"
+                classeDoTitulo="lg:hidden"
+                meuUsuarioId={usuario?.id ?? null}
+                onItens={setFeed}
+              />
             </div>
 
             <section className="order-5">

@@ -125,6 +125,13 @@ export function formatarDiaMes(iso: string | null | undefined): string {
     .replace(".", "");
 }
 
+// "set 2026" — período das leituras anteriores.
+export function formatarMesAno(iso: string | null | undefined): string {
+  const d = paraDate(iso);
+  if (!d) return "—";
+  return `${d.toLocaleDateString("pt-BR", { month: "short" }).replace(".", "")} ${d.getFullYear()}`;
+}
+
 // "quarta" — usado em "vote até quarta" (sem o "-feira", como no mock).
 export function nomeDoDiaSemana(iso: string | null | undefined): string {
   const d = paraDate(iso);

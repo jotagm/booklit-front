@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { buscarClubePorId, deletarClube } from "../api/clubes";
 import { buscarMembroPorUsuarioEClube, listarMembrosPorClube } from "../api/membros";
-import { buscarLeituraAtiva } from "../api/leituras";
+import { buscarLeituraAtiva, listarLeiturasPorClube } from "../api/leituras";
 import { listarConvitesPorClube, deletarConvite } from "../api/convites";
 import { listarVotacoesPorClube } from "../api/votacoes";
 import { listarRegistrosPorLeitura } from "../api/registros";
@@ -30,7 +30,16 @@ import BookCover from "../components/BookCover";
 import FacePile from "../components/FacePile";
 import PistaDoGrupo from "../components/PistaDoGrupo";
 import { corPorId, plural } from "../utils/cores";
-import { DIAS_SEM_REGISTRO, diasAte, formatarData, formatarDiaMes, nomeDoDiaSemana, rotuloPrazo } from "../utils/date";
+import {
+  DIAS_SEM_REGISTRO,
+  diasAte,
+  formatarData,
+  formatarDiaMes,
+  formatarMesAno,
+  nomeDoDiaSemana,
+  paraDate,
+  rotuloPrazo,
+} from "../utils/date";
 
 export default function ClubDetail() {
   const { clubeId } = useParams<{ clubeId: string }>();
@@ -49,7 +58,8 @@ export default function ClubDetail() {
   const [excluindo, setExcluindo] = useState(false);
   const [registros, setRegistros] = useState<RegistroResponse[]>([]);
   const [votos, setVotos] = useState<VotoResponse[]>([]);
-  const [aba, setAba] = useState<"atividade" | "membros" | "sobre">("atividade");
+  const [aba, setAba] = useState<"atividade" | "membros" | "anteriores" | "sobre">("atividade");
+  const [anteriores, setAnteriores] = useState<LeituraClubeResponse[] | null>(null);
 
   const carregar = useCallback(async () => {
     if (!clubeId || !usuario) return;
@@ -94,6 +104,19 @@ export default function ClubDetail() {
   useEffect(() => {
     carregar();
   }, [carregar]);
+
+  // Leituras anteriores só são buscadas quando a aba é aberta.
+  useEffect(() => {
+    if (aba !== "anteriores" || anteriores !== null || !clubeId) return;
+    const agora = new Date();
+    listarLeiturasPorClube(clubeId)
+      .then((todas) =>
+        setAnteriores(
+          todas.filter((l) => l.id !== leituraAtiva?.id && (paraDate(l.dataInicio) ?? agora) <= agora)
+        )
+      )
+      .catch(() => setAnteriores([]));
+  }, [aba, anteriores, clubeId, leituraAtiva]);
 
   // Abrir o clube zera o ponto de novidade dele (na sidebar e nos cartões da home).
   useEffect(() => {
@@ -262,17 +285,25 @@ export default function ClubDetail() {
 
         <main className="mt-5 lg:order-1 lg:mt-0">
           <div className="flex gap-5 border-b border-ink-800/[0.12] text-sm" role="tablist">
-            {(["atividade", "membros", "sobre"] as const).map((a) => (
+            {(["atividade", "membros", "anteriores", "sobre"] as const).map((a) => (
               <button
                 key={a}
                 role="tab"
                 aria-selected={aba === a}
                 onClick={() => setAba(a)}
-                className={`-mb-px pb-2 ${
+                className={`-mb-px whitespace-nowrap pb-2 ${
                   aba === a ? "border-b-2 border-brand-500 font-semibold text-ink-900" : "text-muted-500 hover:text-ink-800"
                 }`}
               >
-                {a}
+                {/* no celular "leituras anteriores" não cabe ao lado das outras três abas */}
+                {a === "anteriores" ? (
+                  <>
+                    <span className="lg:hidden">anteriores</span>
+                    <span className="hidden lg:inline">leituras anteriores</span>
+                  </>
+                ) : (
+                  a
+                )}
               </button>
             ))}
           </div>
@@ -281,6 +312,33 @@ export default function ClubDetail() {
             {aba === "atividade" && (
               <FeedAtividade clubeId={clubeId} limite={15} titulo="" mostrarClube={false} meuUsuarioId={usuario?.id ?? null} />
             )}
+
+            {aba === "anteriores" &&
+              (anteriores === null ? (
+                <Spinner />
+              ) : anteriores.length === 0 ? (
+                <p className="text-sm text-muted-500">nenhuma leitura anterior ainda</p>
+              ) : (
+                <ul className="flex flex-col gap-3">
+                  {anteriores.map((l) => (
+                    <li key={l.id}>
+                      <Link
+                        to={`/leituras/${l.id}`}
+                        className="card flex items-center gap-3.5 px-4 py-3.5 transition-shadow hover:shadow-md"
+                      >
+                        <BookCover url={l.livroCapaUrl} titulo={l.livroTitulo} size="md" />
+                        <div className="min-w-0">
+                          <p className="font-serif text-[17px] leading-tight text-ink-900">{l.livroTitulo}</p>
+                          <p className="mt-1 text-xs text-muted-500">
+                            {l.livroAutor && <>{l.livroAutor} · </>}
+                            {formatarMesAno(l.dataInicio)} – {formatarMesAno(l.dataFim)}
+                          </p>
+                        </div>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              ))}
 
             {aba === "membros" && (
               <ul className="card divide-y divide-ink-800/10">

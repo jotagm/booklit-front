@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import type { ComentarioResponse, UsuarioId } from "../api/types";
 import Avatar from "./Avatar";
@@ -14,6 +14,8 @@ interface Props {
   meuProgresso?: number | null;
   /** Unidade da meta, para o chip ("pág. 25") e o aviso ("20 páginas à frente"). */
   emCapitulos?: boolean;
+  /** "ver tudo" no cabeçalho da discussão: mostra todos os spoilers de uma vez. */
+  revelarTodos?: boolean;
   onResponder: (paiId: string, conteudo: string) => Promise<void>;
   onEditar: (id: string, conteudo: string) => Promise<void>;
   onExcluir: (id: string) => Promise<void>;
@@ -26,6 +28,7 @@ export default function CommentThread({
   ehResposta = false,
   meuProgresso = null,
   emCapitulos = false,
+  revelarTodos = false,
   onResponder,
   onEditar,
   onExcluir,
@@ -36,13 +39,17 @@ export default function CommentThread({
   const [textoEdicao, setTextoEdicao] = useState(comentario.conteudo);
   const [enviando, setEnviando] = useState(false);
   const [revelado, setRevelado] = useState(false);
+  // "só até a pág. N" esconde de novo tudo, inclusive o que foi aberto um a um.
+  useEffect(() => {
+    if (!revelarTodos) setRevelado(false);
+  }, [revelarTodos]);
 
   const souAutor = comentario.usuarioId === meuUsuarioId;
   const possoExcluir = souAutor || souLider;
   const pagina = comentario.removido ? null : comentario.paginaAutor ?? null;
   // Sem página (comentário antigo) ou sem saber onde eu estou, nada é escondido.
   const aFrente = pagina !== null && meuProgresso !== null && !souAutor ? pagina - meuProgresso : 0;
-  const escondido = aFrente > 0 && !revelado;
+  const escondido = aFrente > 0 && !revelado && !revelarTodos;
   const rotuloUnidade = emCapitulos ? "cap." : "pág.";
 
   async function enviarResposta(e: FormEvent) {
@@ -179,6 +186,7 @@ export default function CommentThread({
                   ehResposta
                   meuProgresso={meuProgresso}
                   emCapitulos={emCapitulos}
+                  revelarTodos={revelarTodos}
                   onResponder={onResponder}
                   onEditar={onEditar}
                   onExcluir={onExcluir}
