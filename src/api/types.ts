@@ -56,6 +56,14 @@ export interface UsuarioResponse {
   emailVerificado?: boolean;
   /** URL assinada da foto (vale cerca de 1 hora); sem foto, não vem. */
   fotoUrl?: string | null;
+  /** Lembretes por e-mail ("lembrar quem não votou"). Servidor antigo não manda: conta como sim. */
+  receberLembretes?: boolean;
+}
+
+/** "🔥 3 semanas": semanas seguidas com progresso registrado (GET /usuarios/me/sequencia). */
+export interface SequenciaResponse {
+  semanas: number;
+  leuHoje: boolean;
 }
 
 /** Como enviar a foto: PUT na `url`, com estes cabeçalhos; depois confirmar com a `chave`. */

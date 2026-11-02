@@ -1,13 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
-import { listarMembrosPorUsuario } from "../api/membros";
-import { listarLeiturasPorClube } from "../api/leituras";
-import { buscarRegistroPorLeituraEUsuario } from "../api/registros";
 import Avatar from "../components/Avatar";
 import { Spinner } from "../components/Feedback";
-import { paraDate, sequenciaDeSemanas } from "../utils/date";
-import { buscarPerfil } from "../api/usuarios";
+import { buscarPerfil, buscarSequencia } from "../api/usuarios";
 import type { PerfilResponse } from "../api/types";
 import PerfilCorpo from "../components/PerfilCorpo";
 
@@ -20,20 +16,13 @@ export default function Profile() {
   const [semanas, setSemanas] = useState(0);
   const [perfil, setPerfil] = useState<PerfilResponse | null>(null);
 
-  // "semanas" é a sequência de semanas com leitura registrada — derivada das datas
-  // dos registros, já que o backend não guarda esse contador.
-  const carregarSemanas = useCallback(async () => {
-    if (!usuario) return;
-    const membros = await listarMembrosPorUsuario(usuario.id);
-    const leituras = (await Promise.all(membros.map((m) => listarLeiturasPorClube(m.clubeId).catch(() => [])))).flat();
-    const registros = await Promise.all(leituras.map((l) => buscarRegistroPorLeituraEUsuario(l.id, usuario.id)));
-    const datas = registros.map((r) => paraDate(r?.updatedAt)).filter((d): d is Date => d !== null);
-    setSemanas(sequenciaDeSemanas(datas));
-  }, [usuario]);
-
+  // "🔥 N semanas": semanas seguidas com progresso registrado, contadas pelo backend.
   useEffect(() => {
-    carregarSemanas().catch(() => setSemanas(0));
-  }, [carregarSemanas]);
+    if (!usuario) return;
+    buscarSequencia()
+      .then((s) => setSemanas(s.semanas))
+      .catch(() => setSemanas(0));
+  }, [usuario]);
 
   useEffect(() => {
     if (usuario) buscarPerfil(usuario.id).then(setPerfil).catch(() => setPerfil(null));

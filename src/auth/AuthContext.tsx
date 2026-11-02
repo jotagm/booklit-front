@@ -3,7 +3,12 @@ import type { ReactNode } from "react";
 import { login as apiLogin, criarConta as apiCriarConta, concluirLogin as apiConcluirLogin } from "../api/auth";
 import { verificarCodigo } from "../api/otp";
 import { removerFotoDePerfil, trocarFotoDePerfil } from "../api/foto";
-import { buscarUsuarioAtual, atualizarUsuario as apiAtualizarUsuario, editarPerfil as apiEditarPerfil } from "../api/usuarios";
+import {
+  buscarUsuarioAtual,
+  atualizarUsuario as apiAtualizarUsuario,
+  editarPerfil as apiEditarPerfil,
+  salvarPreferencias as apiSalvarPreferencias,
+} from "../api/usuarios";
 import { getToken, registerUnauthorizedHandler, setToken } from "../api/client";
 import type { DesafioOtpResponse, PerfilRequest, UsuarioRequest, UsuarioResponse } from "../api/types";
 
@@ -36,6 +41,8 @@ interface AuthContextValue {
   /** Envia a imagem ao S3 e passa a usá-la como foto de perfil. */
   trocarFoto: (arquivo: File) => Promise<void>;
   removerFoto: () => Promise<void>;
+  /** Preferências da conta (hoje, lembretes por e-mail). */
+  salvarPreferencias: (dados: { receberLembretes: boolean }) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -152,6 +159,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [usuario, persistir]
   );
 
+  const salvarPreferencias = useCallback(
+    async (dados: { receberLembretes: boolean }) => {
+      persistir(await apiSalvarPreferencias(dados));
+    },
+    [persistir]
+  );
+
   const editarPerfilPublico = useCallback(
     async (dados: PerfilRequest) => {
       persistir(await apiEditarPerfil(dados));
@@ -183,6 +197,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       editarPerfilPublico,
       trocarFoto,
       removerFoto,
+      salvarPreferencias,
     }),
     [
       usuario,
@@ -196,6 +211,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       editarPerfilPublico,
       trocarFoto,
       removerFoto,
+      salvarPreferencias,
     ]
   );
 

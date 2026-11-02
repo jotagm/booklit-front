@@ -1,5 +1,5 @@
 import { api } from "./client";
-import type { PerfilRequest, PerfilResponse, UsuarioRequest, UsuarioResponse, UsuarioId } from "./types";
+import type { PerfilRequest, PerfilResponse, SequenciaResponse, UsuarioRequest, UsuarioResponse, UsuarioId } from "./types";
 
 export async function buscarUsuarioPorId(id: UsuarioId): Promise<UsuarioResponse> {
   const { data } = await api.get<UsuarioResponse>(`/usuarios/${id}`);
@@ -31,5 +31,17 @@ export async function buscarPerfil(id: UsuarioId): Promise<PerfilResponse> {
 // Nome e bio, sem senha e sem invalidar o token.
 export async function editarPerfil(dados: PerfilRequest): Promise<UsuarioResponse> {
   const { data } = await api.patch<UsuarioResponse>("/usuarios/me/perfil", dados);
+  return data;
+}
+
+// Lembretes por e-mail (tela de configurações).
+export async function salvarPreferencias(dados: { receberLembretes: boolean }): Promise<UsuarioResponse> {
+  const { data } = await api.patch<UsuarioResponse>("/usuarios/me/preferencias", dados);
+  return data;
+}
+
+// Semanas seguidas com leitura registrada, contadas pelo backend a partir dos dias de leitura.
+export async function buscarSequencia(): Promise<SequenciaResponse> {
+  const { data } = await api.get<SequenciaResponse>("/usuarios/me/sequencia");
   return data;
 }

@@ -8,6 +8,7 @@ import { listarVotacoesPorClube } from "../api/votacoes";
 import { listarOpcoesPorVotacao } from "../api/opcoesVoto";
 import { listarVotosPorVotacao } from "../api/votos";
 import { extrairMensagemErro } from "../api/client";
+import { buscarSequencia } from "../api/usuarios";
 import type {
   ComentarioResponse,
   LeituraClubeResponse,
@@ -262,6 +263,12 @@ export function usePainel() {
         .map((c) => paraDate(c.meuRegistro?.updatedAt))
         .filter((d): d is Date => d !== null);
 
+      // O backend guarda cada dia de leitura; se ele ainda não tiver o endpoint, cai na conta
+      // aproximada pela última atualização de cada registro.
+      const semanasDeSequencia = await buscarSequencia()
+        .then((s) => s.semanas)
+        .catch(() => sequenciaDeSemanas(datasDeLeitura));
+
       setPainel({
         clubes,
         eventos,
@@ -269,7 +276,7 @@ export function usePainel() {
         continuarLeitura: escolhida
           ? { leitura: escolhida.leituraAtiva!, registro: escolhida.meuRegistro, registrosDoGrupo: escolhida.registros }
           : null,
-        semanasDeSequencia: sequenciaDeSemanas(datasDeLeitura),
+        semanasDeSequencia,
       });
     } catch (e) {
       setErro(extrairMensagemErro(e, "Não foi possível carregar seus clubes."));

@@ -1,22 +1,31 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
+import { extrairMensagemErro } from "../api/client";
 import versao from "../../version.json";
-
-const CHAVE_NOTIFICACOES = "clube-livro:notificacoes";
 
 /** O que saiu da vitrine do perfil: conta, preferências, sair e versão. */
 export default function Configuracoes() {
-  const { usuario, sair } = useAuth();
+  const { usuario, sair, salvarPreferencias } = useAuth();
   const navigate = useNavigate();
-  const [notificacoes, setNotificacoes] = useState(() => localStorage.getItem(CHAVE_NOTIFICACOES) !== "false");
+  // Otimista: o botão muda na hora e volta se o servidor recusar.
+  const [lembretes, setLembretes] = useState(usuario?.receberLembretes !== false);
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
 
-  function alternarNotificacoes() {
-    setNotificacoes((prev) => {
-      const novo = !prev;
-      localStorage.setItem(CHAVE_NOTIFICACOES, String(novo));
-      return novo;
-    });
+  async function alternarLembretes() {
+    const novo = !lembretes;
+    setLembretes(novo);
+    setSalvando(true);
+    setErro(null);
+    try {
+      await salvarPreferencias({ receberLembretes: novo });
+    } catch (e) {
+      setLembretes(!novo);
+      setErro(extrairMensagemErro(e, "Não foi possível salvar a preferência."));
+    } finally {
+      setSalvando(false);
+    }
   }
 
   function logout() {
@@ -60,24 +69,27 @@ export default function Configuracoes() {
           <h2 className="section-label">preferências</h2>
           <div className="card flex items-center justify-between px-5 py-4">
             <div>
-              <p className="text-[15px] text-ink-900">notificações</p>
-              <p className="text-xs text-muted-500">salvo só neste dispositivo</p>
+              <p className="text-[15px] text-ink-900">lembretes por e-mail</p>
+              <p className="text-xs text-muted-500">quando o líder lembra quem ainda não votou</p>
             </div>
             <button
-              onClick={alternarNotificacoes}
+              onClick={alternarLembretes}
+              disabled={salvando}
               className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
-                notificacoes ? "bg-brand-500" : "bg-ink-800/15"
+                lembretes ? "bg-brand-500" : "bg-ink-800/15"
               }`}
-              aria-pressed={notificacoes}
-              aria-label="notificações"
+              role="switch"
+              aria-checked={lembretes}
+              aria-label="lembretes por e-mail"
             >
               <span
-                className={`absolute top-0.5 h-5 w-5 rounded-full bg-cream-50 shadow transition-transform ${
-                  notificacoes ? "translate-x-5" : "translate-x-0.5"
+                className={`absolute left-0 top-0.5 h-5 w-5 rounded-full bg-cream-50 shadow transition-transform ${
+                  lembretes ? "translate-x-5" : "translate-x-0.5"
                 }`}
               />
             </button>
           </div>
+          {erro && <p className="mt-2 text-xs text-red-600">{erro}</p>}
         </section>
 
         <button
