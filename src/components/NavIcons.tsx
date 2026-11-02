@@ -94,7 +94,7 @@ export function Logo({ className = "" }: { className?: string }) {
         <span className="h-3 w-3 rounded-[3px] bg-cream-50" />
       </span>
       <span className="font-serif text-lg text-ink-900">
-        clube <em className="italic">do livro</em>
+        Booklit
       </span>
     </span>
   );

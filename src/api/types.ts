@@ -399,7 +399,8 @@ export type TipoFeed =
   | "LEITURA_INICIADA"
   | "VOTACAO_ABERTA"
   | "VOTACAO_ENCERRADA"
-  | "MEMBRO_ENTROU";
+  | "MEMBRO_ENTROU"
+  | "OPCAO_SUGERIDA";
 export interface FeedItemResponse {
   id: string;
   tipo: TipoFeed;
@@ -419,6 +420,22 @@ export interface FeedItemResponse {
   leituraId?: UUID | null;
   reacoes: Partial<Record<TipoReacao, number>>;
   minhaReacao?: TipoReacao | null;
+  /** Quem reagiu, você por último ("Ana, Carla e você"); no máximo 10. */
+  quemReagiu?: { usuarioId: UsuarioId; nome: string }[] | null;
+  /** COMENTARIO: respostas da conversa e a mais recente delas. */
+  respostas?: number | null;
+  ultimaResposta?: { usuarioId: UsuarioId; usuarioNome: string; usuarioFotoUrl?: string | null; texto: string } | null;
+  /** OPCAO_SUGERIDA: a votação, se ainda dá para votar e quantos membros querem ler o livro. */
+  votacaoId?: UUID | null;
+  votacaoAberta?: boolean | null;
+  membrosQueremLer?: number | null;
+  /** CONCLUIU: foi a primeira pessoa do clube a terminar. */
+  primeiraDoClube?: boolean;
+}
+/** GET /feed/novidades: clubes com atividade que você ainda não viu. */
+export interface NovidadeClubeResponse {
+  clubeId: UUID;
+  quantidade: number;
 }
 export interface ReacoesResponse {
   alvoId: string;

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { listarFeed, reagir, removerReacao } from "../api/feed";
 import type { FeedItemResponse, TipoReacao, UUID } from "../api/types";
@@ -13,6 +14,8 @@ const REACOES: { tipo: TipoReacao; emoji: string; rotulo: string }[] = [
   { tipo: "PALMAS", emoji: "👏", rotulo: "palmas" },
 ];
 
+const primeiroNome = (nome?: string | null) => (nome ?? "").trim().split(/\s+/)[0];
+
 function destinoDe(item: FeedItemResponse): string | null {
   switch (item.tipo) {
     case "PROGRESSO":
@@ -20,6 +23,8 @@ function destinoDe(item: FeedItemResponse): string | null {
     case "COMENTARIO":
     case "LEITURA_INICIADA":
       return item.leituraId ? `/leituras/${item.leituraId}` : null;
+    case "OPCAO_SUGERIDA":
+      return item.votacaoId ? `/votacoes/${item.votacaoId}` : null;
     case "VOTACAO_ABERTA":
     case "VOTACAO_ENCERRADA":
       return `/clubes/${item.clubeId}`;
@@ -29,7 +34,7 @@ function destinoDe(item: FeedItemResponse): string | null {
 }
 
 function Frase({ item }: { item: FeedItemResponse }) {
-  const quem = item.ehVoce ? "Você" : (item.usuarioNome ?? "").split(" ")[0];
+  const quem = item.ehVoce ? "Você" : primeiroNome(item.usuarioNome);
   const livro = <strong>{item.livroTitulo}</strong>;
   const unidade = item.unidade === "capítulos" ? "capítulo" : "página";
   switch (item.tipo) {
@@ -42,13 +47,19 @@ function Frase({ item }: { item: FeedItemResponse }) {
     case "CONCLUIU":
       return (
         <>
-          <strong>{quem}</strong> terminou {livro} 🎉
+          <strong>{quem}</strong> terminou {livro} 🎉{item.primeiraDoClube && " — primeira do clube!"}
         </>
       );
     case "COMENTARIO":
       return (
         <>
           <strong>{quem}</strong> comentou em {livro}
+        </>
+      );
+    case "OPCAO_SUGERIDA":
+      return (
+        <>
+          <strong>{quem}</strong> sugeriu {livro} para a votação
         </>
       );
     case "LEITURA_INICIADA":
@@ -74,8 +85,31 @@ function Frase({ item }: { item: FeedItemResponse }) {
   }
 }
 
+/** "Clube do Café · há 20 min · pág. 96" */
+function Detalhes({ item, mostrarClube }: { item: FeedItemResponse; mostrarClube: boolean }) {
+  const partes: string[] = [];
+  if (mostrarClube) partes.push(item.clubeNome);
+  partes.push(tempoRelativo(item.quando));
+  // Em comentário, valorAtual é onde o autor estava ao escrever.
+  if (item.tipo === "COMENTARIO" && item.valorAtual != null) {
+    partes.push(`${item.unidade === "capítulos" ? "cap." : "pág."} ${item.valorAtual}`);
+  }
+  if (item.tipo === "OPCAO_SUGERIDA" && item.membrosQueremLer) {
+    partes.push(`${item.membrosQueremLer} ${item.membrosQueremLer === 1 ? "membro quer" : "membros querem"} ler`);
+  }
+  return <span className="block text-xs text-muted-500">{partes.join(" · ")}</span>;
+}
+
+/** "Ana, Carla e você"; com mais de três, "Ana, Bruno e +3". Você vem por último (o backend já ordena assim). */
+function nomesDeQuemReagiu(item: FeedItemResponse, meuUsuarioId: number | null): string | null {
+  const nomes = (item.quemReagiu ?? []).map((p) => (p.usuarioId === meuUsuarioId ? "você" : primeiroNome(p.nome)));
+  if (nomes.length === 0) return null;
+  if (nomes.length > 3) return `${nomes.slice(0, 2).join(", ")} e +${nomes.length - 2}`;
+  return nomes.length === 1 ? nomes[0] : `${nomes.slice(0, -1).join(", ")} e ${nomes[nomes.length - 1]}`;
+}
+
 /** Reação otimista: ajusta as contagens na hora; o servidor confirma (ou o item volta ao que era). */
-function comReacao(item: FeedItemResponse, nova: TipoReacao | null): FeedItemResponse {
+function comReacao(item: FeedItemResponse, nova: TipoReacao | null, euId: number | null): FeedItemResponse {
   const reacoes = { ...item.reacoes };
   const antiga = item.minhaReacao;
   if (antiga) {
@@ -84,7 +118,10 @@ function comReacao(item: FeedItemResponse, nova: TipoReacao | null): FeedItemRes
     else reacoes[antiga] = restante;
   }
   if (nova) reacoes[nova] = (reacoes[nova] ?? 0) + 1;
-  return { ...item, reacoes, minhaReacao: nova };
+  // Você sai da lista de quem reagiu ao desfazer e entra (por último) ao reagir.
+  let quemReagiu = (item.quemReagiu ?? []).filter((p) => p.usuarioId !== euId);
+  if (nova && euId !== null) quemReagiu = [...quemReagiu, { usuarioId: euId, nome: "você" }];
+  return { ...item, reacoes, minhaReacao: nova, quemReagiu };
 }
 
 export default function FeedAtividade({
@@ -92,12 +129,15 @@ export default function FeedAtividade({
   limite = 20,
   titulo = "atividade dos seus clubes",
   mostrarClube = true,
+  meuUsuarioId = null,
   onItens,
 }: {
   clubeId?: UUID;
   limite?: number;
   titulo?: string;
   mostrarClube?: boolean;
+  /** Para a lista de quem reagiu ("… e você") acompanhar a reação otimista. */
+  meuUsuarioId?: number | null;
   /** Recebe os itens carregados (a home deriva "lendo agora" deles sem buscar de novo). */
   onItens?: (itens: FeedItemResponse[]) => void;
 }) {
@@ -123,7 +163,7 @@ export default function FeedAtividade({
   async function aoReagir(item: FeedItemResponse, tipo: TipoReacao) {
     setErroReacao(false);
     const desfazer = item.minhaReacao === tipo;
-    trocar(item.id, (i) => comReacao(i, desfazer ? null : tipo));
+    trocar(item.id, (i) => comReacao(i, desfazer ? null : tipo, meuUsuarioId));
     try {
       const r = desfazer ? await removerReacao(item.id) : await reagir(item.clubeId, item.id, tipo);
       trocar(item.id, (i) => ({ ...i, reacoes: r.reacoes, minhaReacao: r.minhaReacao ?? null }));
@@ -140,122 +180,200 @@ export default function FeedAtividade({
       {titulo && <h2 className="section-label">{titulo}</h2>}
       {erroReacao && <p className="mb-2 text-xs text-red-600">não foi possível reagir agora.</p>}
       <ul className="flex flex-col gap-3">
-        {itens.map((item) => {
-          const destino = destinoDe(item);
-          const celebracao = item.tipo === "CONCLUIU";
-          const comCapa = ["PROGRESSO", "CONCLUIU", "LEITURA_INICIADA"].includes(item.tipo) && item.livroTitulo;
-          const corpo = (
-            <div className="flex gap-3">
-              {item.usuarioId && item.usuarioNome ? (
-                <Avatar nome={item.usuarioNome} usuarioId={item.usuarioId} fotoUrl={item.usuarioFotoUrl} size="md" />
-              ) : (
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-50 text-base">
-                  {item.tipo.startsWith("VOTACAO") ? "🗳" : "📚"}
-                </span>
-              )}
-              <div className="min-w-0 flex-1">
-                <p className="text-sm leading-snug text-ink-900">
-                  <Frase item={item} />
-                </p>
-                <p className="mt-0.5 text-xs text-muted-500">
-                  {mostrarClube ? `${item.clubeNome} · ` : ""}
-                  {tempoRelativo(item.quando)}
-                  {/* Em comentário, valorAtual é onde o autor estava ao escrever. */}
-                  {item.tipo === "COMENTARIO" && item.valorAtual != null &&
-                    ` · ${item.unidade === "capítulos" ? "cap." : "pág."} ${item.valorAtual}`}
-                </p>
-                {item.tipo === "COMENTARIO" && item.texto && (
-                  <p className="mt-2 font-serif text-base leading-relaxed text-ink-900">“{item.texto}”</p>
-                )}
-                {item.tipo === "PROGRESSO" && item.valorMeta ? (
-                  <div className="mt-2">
-                    <ProgressBar atual={item.valorAtual ?? 0} meta={item.valorMeta} />
-                  </div>
-                ) : null}
-              </div>
-              {comCapa && <BookCover url={item.livroCapaUrl} titulo={item.livroTitulo ?? ""} size="sm" />}
-            </div>
-          );
-          return (
-            <li
-              key={item.id}
-              className={`card px-4 py-3 ${celebracao ? "border-brand-500/40 bg-brand-50/60" : ""}`}
-            >
-              {destino ? (
-                <Link to={destino} className="block hover:opacity-90">
-                  {corpo}
-                </Link>
-              ) : (
-                corpo
-              )}
-              {item.tipo === "MEMBRO_ENTROU" ? (
-                <BoasVindas item={item} onAcenar={() => aoReagir(item, "ACENO")} />
-              ) : (
-                <div className="mt-2.5 flex gap-1.5">
-                  {REACOES.map(({ tipo, emoji, rotulo }) => {
-                    const total = item.reacoes[tipo] ?? 0;
-                    const marcada = item.minhaReacao === tipo;
-                    return (
-                      <button
-                        key={tipo}
-                        type="button"
-                        onClick={() => aoReagir(item, tipo)}
-                        aria-label={rotulo}
-                        aria-pressed={marcada}
-                        className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-sm transition-colors ${
-                          marcada
-                            ? "border-brand-500 bg-brand-500/10 text-brand-600"
-                            : "border-ink-800/15 text-muted-600 hover:bg-ink-800/[0.04]"
-                        }`}
-                      >
-                        <span>{emoji}</span>
-                        {total > 0 && <span className="text-xs font-semibold">{total}</span>}
-                      </button>
-                    );
-                  })}
-                  {item.tipo === "COMENTARIO" && item.leituraId && (
-                    <Link
-                      to={`/leituras/${item.leituraId}`}
-                      className="ml-auto self-center text-[13px] font-semibold text-brand-600 hover:text-brand-700"
-                    >
-                      responder
-                    </Link>
-                  )}
-                </div>
-              )}
-            </li>
-          );
-        })}
+        {itens.map((item) => (
+          <li key={item.id}>
+            {item.tipo === "MEMBRO_ENTROU" ? (
+              <CartaoEntrada item={item} mostrarClube={mostrarClube} onAcenar={() => aoReagir(item, "ACENO")} />
+            ) : (
+              <Cartao
+                item={item}
+                mostrarClube={mostrarClube}
+                meuUsuarioId={meuUsuarioId}
+                onReagir={(tipo) => aoReagir(item, tipo)}
+              />
+            )}
+          </li>
+        ))}
       </ul>
     </section>
   );
 }
 
+function Cabecalho({ item, mostrarClube, lado }: { item: FeedItemResponse; mostrarClube: boolean; lado?: ReactNode }) {
+  return (
+    <div className="flex items-center gap-3">
+      {item.usuarioId && item.usuarioNome ? (
+        <Avatar nome={item.usuarioNome} usuarioId={item.usuarioId} fotoUrl={item.usuarioFotoUrl} size="md" />
+      ) : (
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-50 text-base">
+          {item.tipo.startsWith("VOTACAO") ? "🗳" : "📚"}
+        </span>
+      )}
+      <div className="min-w-0 flex-1 text-sm leading-[1.3] text-ink-900">
+        <Frase item={item} />
+        <Detalhes item={item} mostrarClube={mostrarClube} />
+      </div>
+      {lado}
+    </div>
+  );
+}
+
+function Cartao({
+  item,
+  mostrarClube,
+  meuUsuarioId,
+  onReagir,
+}: {
+  item: FeedItemResponse;
+  mostrarClube: boolean;
+  meuUsuarioId: number | null;
+  onReagir: (tipo: TipoReacao) => void;
+}) {
+  const destino = destinoDe(item);
+  const celebracao = item.tipo === "CONCLUIU";
+  const comCapa =
+    ["PROGRESSO", "CONCLUIU", "LEITURA_INICIADA", "OPCAO_SUGERIDA"].includes(item.tipo) && item.livroTitulo;
+  const capa = comCapa ? <BookCover url={item.livroCapaUrl} titulo={item.livroTitulo ?? ""} size="sm" /> : null;
+  const nomes = nomesDeQuemReagiu(item, meuUsuarioId);
+
+  const conteudo = (
+    <div className="flex flex-col gap-2.5">
+      <Cabecalho item={item} mostrarClube={mostrarClube} lado={capa} />
+      {item.tipo === "COMENTARIO" && item.texto && (
+        <p className="font-serif text-lg leading-[1.45] text-ink-900">“{item.texto}”</p>
+      )}
+      {item.tipo === "PROGRESSO" && item.valorMeta ? (
+        <div className="pl-[52px] pr-[52px]">
+          <ProgressBar atual={item.valorAtual ?? 0} meta={item.valorMeta} />
+        </div>
+      ) : null}
+    </div>
+  );
+
+  return (
+    <div
+      className={`flex flex-col gap-2.5 rounded-xl2 border px-5 py-4 ${
+        celebracao ? "border-brand-500/40 bg-brand-50" : "border-ink-800/10 bg-cream-50"
+      }`}
+    >
+      {destino ? (
+        <Link to={destino} className="block hover:opacity-90">
+          {conteudo}
+        </Link>
+      ) : (
+        conteudo
+      )}
+
+      {item.tipo === "COMENTARIO" && item.ultimaResposta && (
+        <Link
+          to={destino ?? "#"}
+          className="flex items-center gap-2.5 rounded-xl bg-ink-800/[0.04] px-3 py-2.5 text-[13px] text-ink-800 hover:bg-ink-800/[0.06]"
+        >
+          <Avatar
+            nome={item.ultimaResposta.usuarioNome}
+            usuarioId={item.ultimaResposta.usuarioId}
+            fotoUrl={item.ultimaResposta.usuarioFotoUrl}
+            size="sm"
+            className="!h-6 !w-6 !text-[0px]"
+          />
+          <span className="min-w-0">
+            <strong className="text-ink-900">{primeiroNome(item.ultimaResposta.usuarioNome)}</strong>{" "}
+            {item.ultimaResposta.texto}
+          </span>
+        </Link>
+      )}
+
+      <div className="flex items-center gap-1.5">
+        {REACOES.map(({ tipo, emoji, rotulo }) => {
+          const total = item.reacoes[tipo] ?? 0;
+          const marcada = item.minhaReacao === tipo;
+          return (
+            <button
+              key={tipo}
+              type="button"
+              onClick={() => onReagir(tipo)}
+              aria-label={rotulo}
+              aria-pressed={marcada}
+              className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-[13px] transition-colors ${
+                marcada
+                  ? "border-brand-500 bg-brand-500/10 text-brand-600"
+                  : "border-ink-800/15 text-muted-700 hover:bg-ink-800/[0.04]"
+              }`}
+            >
+              <span>{emoji}</span>
+              {total > 0 && <strong className="text-xs">{total}</strong>}
+            </button>
+          );
+        })}
+        {nomes && <span className="ml-1.5 min-w-0 truncate text-xs text-muted-500">{nomes}</span>}
+        <span className="flex-1" />
+        {item.tipo === "COMENTARIO" && item.leituraId && (
+          <Link
+            to={`/leituras/${item.leituraId}`}
+            className="shrink-0 text-[13px] font-semibold text-brand-600 hover:text-brand-700"
+          >
+            responder{item.respostas ? ` · ${item.respostas}` : ""}
+          </Link>
+        )}
+        {item.tipo === "OPCAO_SUGERIDA" && item.votacaoAberta && item.votacaoId && (
+          <Link
+            to={`/votacoes/${item.votacaoId}`}
+            className="shrink-0 text-[13px] font-semibold text-brand-600 hover:text-brand-700"
+          >
+            votar nesse →
+          </Link>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /**
- * "Entrou no clube": no lugar das reações, um 👋 de boas-vindas (reação ACENO). Tocar de novo
- * desfaz, como nas outras reações. Quem entrou não acena para si mesmo.
+ * "Entrou no clube" em uma linha só, como no mock: no lugar das reações, um 👋 de boas-vindas
+ * (reação ACENO) à direita. Tocar de novo desfaz. Quem entrou não acena para si mesmo.
  */
-function BoasVindas({ item, onAcenar }: { item: FeedItemResponse; onAcenar: () => void }) {
+function CartaoEntrada({
+  item,
+  mostrarClube,
+  onAcenar,
+}: {
+  item: FeedItemResponse;
+  mostrarClube: boolean;
+  onAcenar: () => void;
+}) {
   const acenos = item.reacoes.ACENO ?? 0;
   const acenei = item.minhaReacao === "ACENO";
-  if (item.ehVoce) {
-    return acenos > 0 ? <p className="mt-2.5 text-[13px] text-muted-600">👋 {acenos}</p> : null;
-  }
+  const destino = destinoDe(item);
+
+  const lado = item.ehVoce ? (
+    acenos > 0 ? <span className="shrink-0 text-[13px] text-muted-600">👋 {acenos}</span> : null
+  ) : (
+    <button
+      type="button"
+      onClick={onAcenar}
+      aria-pressed={acenei}
+      className={`shrink-0 rounded-full border px-3 py-1.5 text-[13px] font-semibold transition-colors ${
+        acenei
+          ? "border-brand-500 bg-brand-500/10 text-brand-600"
+          : "border-ink-800/15 text-ink-800 hover:bg-ink-800/[0.04]"
+      }`}
+    >
+      👋 {acenei ? `boas-vindas enviadas${acenos > 1 ? ` · ${acenos}` : ""}` : `dar boas-vindas${acenos > 0 ? ` · ${acenos}` : ""}`}
+    </button>
+  );
+
   return (
-    <div className="mt-2.5 flex items-center gap-2">
-      <button
-        type="button"
-        onClick={onAcenar}
-        aria-pressed={acenei}
-        className={`rounded-full border px-3 py-1.5 text-[13px] font-semibold transition-colors ${
-          acenei
-            ? "border-brand-500/40 bg-brand-50 text-brand-700"
-            : "border-ink-800/15 text-ink-800 hover:bg-ink-800/[0.04]"
-        }`}
-      >
-        👋 {acenei ? "boas-vindas enviadas" : "dar boas-vindas"}
-      </button>
-      {acenos > 0 && <span className="text-[13px] text-muted-600">👋 {acenos}</span>}
+    <div className="flex items-center gap-3 rounded-xl2 border border-ink-800/10 bg-cream-50 px-5 py-3.5">
+      <div className="min-w-0 flex-1">
+        {destino ? (
+          <Link to={destino} className="block hover:opacity-90">
+            <Cabecalho item={item} mostrarClube={mostrarClube} />
+          </Link>
+        ) : (
+          <Cabecalho item={item} mostrarClube={mostrarClube} />
+        )}
+      </div>
+      {lado}
     </div>
   );
 }

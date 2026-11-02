@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { listarMembrosPorUsuario } from "../api/membros";
 import type { UsuarioClubeResponse } from "../api/types";
 import { corPorId } from "../utils/cores";
+import { useNovidades } from "../hooks/useNovidades";
 import { useAuth } from "../auth/AuthContext";
 import Avatar from "../components/Avatar";
 import { IconeClubes, IconeEstante, IconeExplorar, IconeLeituras, IconePerfil, Logo } from "../components/NavIcons";
@@ -22,6 +23,7 @@ export default function AppLayout() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const [clubes, setClubes] = useState<UsuarioClubeResponse[]>([]);
+  const temNovidade = useNovidades();
 
   // Atalho para os clubes na sidebar (só desktop). Recarrega ao navegar para
   // refletir clube criado/excluído sem precisar de um estado global.
@@ -68,15 +70,15 @@ export default function AppLayout() {
         </nav>
 
         {clubes.length > 0 && (
-          <div className="mt-8 min-h-0 overflow-y-auto">
-            <h2 className="section-label px-2">seus clubes</h2>
+          <div className="mt-7 min-h-0 overflow-y-auto">
+            <h2 className="section-label px-3">seus clubes</h2>
             <ul className="flex flex-col gap-0.5">
               {clubes.map((c) => (
                 <li key={c.id}>
                   <NavLink
                     to={`/clubes/${c.clubeId}`}
                     className={({ isActive }) =>
-                      `flex items-center gap-3 rounded-xl px-2 py-2 text-sm transition-colors ${
+                      `flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm transition-colors ${
                         isActive ? "bg-ink-800/5 font-semibold text-ink-900" : "text-ink-800 hover:bg-ink-800/5"
                       }`
                     }
@@ -85,7 +87,10 @@ export default function AppLayout() {
                       className="h-[22px] w-[22px] shrink-0 rounded-[7px]"
                       style={{ backgroundColor: corPorId(c.clubeId) }}
                     />
-                    <span className="truncate">{c.nomeClube}</span>
+                    <span className="flex-1 truncate">{c.nomeClube}</span>
+                    {temNovidade(c.clubeId) && (
+                      <span className="h-2 w-2 shrink-0 rounded-full bg-brand-500" aria-label="tem novidade" />
+                    )}
                   </NavLink>
                 </li>
               ))}

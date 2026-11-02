@@ -28,7 +28,7 @@ function statusDoClube(clube: ClubeDoPainel) {
   return null;
 }
 
-export default function ClubCard({ clube }: { clube: ClubeDoPainel }) {
+export default function ClubCard({ clube, novidade = false }: { clube: ClubeDoPainel; novidade?: boolean }) {
   const { membro, leituraAtiva, meuRegistro, votacaoAberta, opcoesDaVotacao } = clube;
   const status = statusDoClube(clube);
 
@@ -41,7 +41,12 @@ export default function ClubCard({ clube }: { clube: ClubeDoPainel }) {
         className="flex items-center justify-between px-5 py-3"
         style={{ backgroundColor: corPorId(membro.clubeId) }}
       >
-        <span className="font-serif text-lg text-cream-50">{membro.nomeClube}</span>
+        <span className="flex min-w-0 items-center gap-2 font-serif text-lg text-cream-50">
+          <span className="truncate">{membro.nomeClube}</span>
+          {novidade && (
+            <span className="h-2 w-2 shrink-0 rounded-full bg-cream-50" aria-label="tem novidade" title="atividade nova" />
+          )}
+        </span>
         <RoleBadge papel={membro.papel} />
       </div>
 

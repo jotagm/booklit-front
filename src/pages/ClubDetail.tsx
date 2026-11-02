@@ -8,6 +8,7 @@ import { listarConvitesPorClube, deletarConvite } from "../api/convites";
 import { listarVotacoesPorClube } from "../api/votacoes";
 import { listarRegistrosPorLeitura } from "../api/registros";
 import { listarVotosPorVotacao } from "../api/votos";
+import { marcarClubeVisto } from "../api/feed";
 import type {
   ClubeResponse,
   ConviteResponse,
@@ -93,6 +94,11 @@ export default function ClubDetail() {
   useEffect(() => {
     carregar();
   }, [carregar]);
+
+  // Abrir o clube zera o ponto de novidade dele (na sidebar e nos cartões da home).
+  useEffect(() => {
+    if (clubeId) marcarClubeVisto(clubeId).catch(() => {});
+  }, [clubeId]);
 
   async function cancelarConvite(id: string) {
     try {
@@ -273,7 +279,7 @@ export default function ClubDetail() {
 
           <div className="pt-4">
             {aba === "atividade" && (
-              <FeedAtividade clubeId={clubeId} limite={15} titulo="" mostrarClube={false} />
+              <FeedAtividade clubeId={clubeId} limite={15} titulo="" mostrarClube={false} meuUsuarioId={usuario?.id ?? null} />
             )}
 
             {aba === "membros" && (

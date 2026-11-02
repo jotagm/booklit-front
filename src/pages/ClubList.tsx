@@ -2,9 +2,11 @@ import { useCallback, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { usePainel } from "../hooks/usePainel";
+import { useNovidades } from "../hooks/useNovidades";
 import type { Painel, Prazo } from "../hooks/usePainel";
 import type { FeedItemResponse, UsuarioId } from "../api/types";
 import { atualizarProgresso } from "../api/registros";
+import { extrairMensagemErro } from "../api/client";
 import ClubCard from "../components/ClubCard";
 import ConvitesPendentes from "../components/ConvitesPendentes";
 import BookCover from "../components/BookCover";
@@ -35,6 +37,7 @@ export default function ClubList() {
   const { usuario } = useAuth();
   const { painel, erro, recarregar } = usePainel();
   const [feed, setFeed] = useState<FeedItemResponse[]>([]);
+  const temNovidade = useNovidades();
 
   const primeiroNome = usuario ? usuario.nome.trim().split(/\s+/)[0] : "";
   const lendo = quemEstaLendo(feed);
@@ -127,7 +130,7 @@ export default function ClubList() {
             )}
 
             <div className="order-4">
-              <FeedAtividade limite={20} titulo="nos seus clubes" onItens={setFeed} />
+              <FeedAtividade limite={20} titulo="nos seus clubes" meuUsuarioId={usuario?.id ?? null} onItens={setFeed} />
             </div>
 
             <section className="order-5">
@@ -140,7 +143,7 @@ export default function ClubList() {
               <ul className="flex flex-col gap-4">
                 {painel.clubes.map((clube) => (
                   <li key={clube.membro.id}>
-                    <ClubCard clube={clube} />
+                    <ClubCard clube={clube} novidade={temNovidade(clube.membro.clubeId)} />
                   </li>
                 ))}
               </ul>
@@ -181,6 +184,7 @@ function ContinuarLeitura({
   aoSalvar: () => Promise<void>;
 }) {
   const [registrando, setRegistrando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
   const outros = cl.registrosDoGrupo.filter((r) => r.usuarioId !== meuId);
   const nomes = outros.slice(0, 3).map((r) => r.nomeUsuario.trim().split(/\s+/)[0]);
   const atual = cl.registro?.valorAtual ?? 0;
@@ -189,8 +193,13 @@ function ContinuarLeitura({
   // Estável: o stepper usa o callback como dependência do debounce.
   const salvar = useCallback(
     async (valor: number) => {
-      await atualizarProgresso(leituraId, valor);
-      await aoSalvar();
+      setErro(null);
+      try {
+        await atualizarProgresso(leituraId, valor);
+        await aoSalvar();
+      } catch (e) {
+        setErro(extrairMensagemErro(e, "Não foi possível salvar seu progresso."));
+      }
     },
     [leituraId, aoSalvar]
   );
@@ -241,6 +250,7 @@ function ContinuarLeitura({
           unidade={cl.leitura.tipoMeta === "PAGINA" ? "pág." : "cap."}
           onSalvar={salvar}
         />
+        {erro && <p className="mt-3 text-center text-xs text-red-600">{erro}</p>}
       </Modal>
     </div>
   );
