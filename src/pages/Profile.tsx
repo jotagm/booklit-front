@@ -88,7 +88,7 @@ export default function Profile() {
       <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[320px_minmax(0,1fr)] lg:items-start lg:gap-8">
         {/* cartão do usuário */}
         <div className="card flex flex-col items-center px-6 py-7 text-center">
-          <Avatar nome={usuario.nome} usuarioId={usuario.id} size="lg" />
+          <Avatar nome={usuario.nome} usuarioId={usuario.id} size="lg" fotoUrl={usuario.fotoUrl} />
           <h2 className="mt-4 font-serif text-xl font-bold text-ink-900">{usuario.nome}</h2>
           <p className="text-sm text-muted-600">{usuario.email}</p>
           {usuario.bio && <p className="mt-3 text-sm text-ink-800">{usuario.bio}</p>}

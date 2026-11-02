@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import type { ReactNode } from "react";
 import { login as apiLogin, criarConta as apiCriarConta, concluirLogin as apiConcluirLogin } from "../api/auth";
 import { verificarCodigo } from "../api/otp";
+import { removerFotoDePerfil, trocarFotoDePerfil } from "../api/foto";
 import { buscarUsuarioAtual, atualizarUsuario as apiAtualizarUsuario, editarPerfil as apiEditarPerfil } from "../api/usuarios";
 import { getToken, registerUnauthorizedHandler, setToken } from "../api/client";
 import type { DesafioOtpResponse, PerfilRequest, UsuarioRequest, UsuarioResponse } from "../api/types";
@@ -32,6 +33,9 @@ interface AuthContextValue {
   atualizarPerfil: (dados: UsuarioRequest) => Promise<void>;
   /** Nome e bio (o que os outros leitores veem): não pede senha. */
   editarPerfilPublico: (dados: PerfilRequest) => Promise<void>;
+  /** Envia a imagem ao S3 e passa a usá-la como foto de perfil. */
+  trocarFoto: (arquivo: File) => Promise<void>;
+  removerFoto: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -73,6 +77,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       buscarUsuarioAtual()
         .then(persistir)
         .catch(() => sair());
+    } else if (getToken()) {
+      // A URL da foto é assinada e vale cerca de 1 hora: o usuário guardado no navegador
+      // traria um endereço vencido. Falha de rede aqui não derruba a sessão (o 401 já cai no
+      // interceptor).
+      buscarUsuarioAtual()
+        .then(persistir)
+        .catch(() => undefined);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -148,6 +159,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [persistir]
   );
 
+  const trocarFoto = useCallback(
+    async (arquivo: File) => {
+      persistir(await trocarFotoDePerfil(arquivo));
+    },
+    [persistir]
+  );
+
+  const removerFoto = useCallback(async () => {
+    persistir(await removerFotoDePerfil());
+  }, [persistir]);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       usuario,
@@ -159,8 +181,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       sair,
       atualizarPerfil,
       editarPerfilPublico,
+      trocarFoto,
+      removerFoto,
     }),
-    [usuario, carregando, entrar, cadastrar, confirmarCadastro, confirmarCodigo, sair, atualizarPerfil, editarPerfilPublico]
+    [
+      usuario,
+      carregando,
+      entrar,
+      cadastrar,
+      confirmarCadastro,
+      confirmarCodigo,
+      sair,
+      atualizarPerfil,
+      editarPerfilPublico,
+      trocarFoto,
+      removerFoto,
+    ]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -40,7 +40,7 @@ export default function LeitorPerfil() {
       {perfil && (
         <>
           <div className="mb-6 mt-4 flex flex-col items-center text-center">
-            <Avatar nome={perfil.nome} usuarioId={perfil.id} size="lg" />
+            <Avatar nome={perfil.nome} usuarioId={perfil.id} size="lg" fotoUrl={perfil.fotoUrl} />
             <h1 className="mt-4 font-serif text-2xl font-bold text-ink-900">{perfil.nome}</h1>
             {perfil.bio && <p className="mt-2 max-w-md text-sm text-ink-800">{perfil.bio}</p>}
             {membroDesde(perfil.membroDesde) && (

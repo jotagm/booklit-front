@@ -1,14 +1,16 @@
-import { useState } from "react";
-import type { FormEvent } from "react";
+import { useRef, useState } from "react";
+import type { ChangeEvent, FormEvent } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { extrairMensagemErro } from "../api/client";
+import { validarFoto } from "../api/foto";
+import Avatar from "../components/Avatar";
 import { TextAreaField, TextField } from "../components/TextField";
 import Button from "../components/Button";
 import { ErrorBanner } from "../components/Feedback";
 
 export default function ProfileEdit() {
-  const { usuario, atualizarPerfil, editarPerfilPublico } = useAuth();
+  const { usuario, atualizarPerfil, editarPerfilPublico, trocarFoto, removerFoto } = useAuth();
   const navigate = useNavigate();
   const location = useLocation() as { state?: { focoSenha?: boolean } };
 
@@ -20,6 +22,40 @@ export default function ProfileEdit() {
   const [perfilSalvo, setPerfilSalvo] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [trabalhandoNaFoto, setTrabalhandoNaFoto] = useState(false);
+  const seletorDeFoto = useRef<HTMLInputElement>(null);
+
+  async function onEscolherFoto(e: ChangeEvent<HTMLInputElement>) {
+    const arquivo = e.target.files?.[0];
+    e.target.value = ""; // deixa escolher o mesmo arquivo de novo depois de um erro
+    if (!arquivo) return;
+    const problema = validarFoto(arquivo);
+    if (problema) {
+      setErro(problema);
+      return;
+    }
+    setErro(null);
+    setTrabalhandoNaFoto(true);
+    try {
+      await trocarFoto(arquivo);
+    } catch (err) {
+      setErro(extrairMensagemErro(err, "Não foi possível trocar a foto."));
+    } finally {
+      setTrabalhandoNaFoto(false);
+    }
+  }
+
+  async function onRemoverFoto() {
+    setErro(null);
+    setTrabalhandoNaFoto(true);
+    try {
+      await removerFoto();
+    } catch (err) {
+      setErro(extrairMensagemErro(err, "Não foi possível remover a foto."));
+    } finally {
+      setTrabalhandoNaFoto(false);
+    }
+  }
 
   // Nome e bio: o que os outros leitores veem. Não pede senha.
   async function onSubmitPerfil(e: FormEvent) {
@@ -66,6 +102,33 @@ export default function ProfileEdit() {
           <ErrorBanner mensagem={erro} />
         </div>
       )}
+
+      <section className="mb-6 flex items-center gap-4">
+        <Avatar nome={usuario.nome} usuarioId={usuario.id} size="lg" fotoUrl={usuario.fotoUrl} />
+        <div className="flex flex-col items-start gap-2">
+          <input
+            ref={seletorDeFoto}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className="hidden"
+            onChange={onEscolherFoto}
+          />
+          <Button
+            type="button"
+            variant="secondary"
+            loading={trabalhandoNaFoto}
+            onClick={() => seletorDeFoto.current?.click()}
+          >
+            {usuario.fotoUrl ? "trocar foto" : "adicionar foto"}
+          </Button>
+          {usuario.fotoUrl && !trabalhandoNaFoto && (
+            <button type="button" onClick={onRemoverFoto} className="text-sm text-muted-600 hover:text-ink-800">
+              remover foto
+            </button>
+          )}
+          <p className="text-xs text-muted-500">JPEG, PNG ou WebP, até 2 MB</p>
+        </div>
+      </section>
 
       <form onSubmit={onSubmitPerfil} className="flex flex-col gap-4">
         <h2 className="section-label">perfil público</h2>

@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+
 function iniciais(nome: string): string {
   const partes = nome.trim().split(/\s+/);
   const primeira = partes[0]?.[0] ?? "";
@@ -19,15 +21,36 @@ export default function Avatar({
   usuarioId,
   size = "md",
   className = "",
+  fotoUrl,
 }: {
   nome: string;
   usuarioId?: number;
   size?: keyof typeof tamanhos;
   className?: string;
+  /** Foto de perfil; sem ela (ou se a URL falhar, por exemplo vencida) aparecem as iniciais. */
+  fotoUrl?: string | null;
 }) {
+  const [falhou, setFalhou] = useState(false);
+  // Uma URL nova (troca de foto) merece outra tentativa, mesmo depois de uma falha.
+  useEffect(() => setFalhou(false), [fotoUrl]);
+
+  const classes = `flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand-500 font-semibold text-cream-50 ${tamanhos[size]} ${className}`;
+
+  if (fotoUrl && !falhou) {
+    return (
+      <img
+        src={fotoUrl}
+        alt={nome}
+        title={nome}
+        className={`${classes} object-cover`}
+        onError={() => setFalhou(true)}
+      />
+    );
+  }
+
   return (
     <div
-      className={`flex shrink-0 items-center justify-center rounded-full bg-brand-500 font-semibold text-cream-50 ${tamanhos[size]} ${className}`}
+      className={classes}
       style={usuarioId === undefined ? undefined : { backgroundColor: CORES[Math.abs(usuarioId) % CORES.length] }}
       title={nome}
     >

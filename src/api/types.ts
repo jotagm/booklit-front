@@ -54,6 +54,16 @@ export interface UsuarioResponse {
   createdAt: ISODateTime;
   /** true depois que o código por e-mail foi confirmado (no login ou na verificação). */
   emailVerificado?: boolean;
+  /** URL assinada da foto (vale cerca de 1 hora); sem foto, não vem. */
+  fotoUrl?: string | null;
+}
+
+/** Como enviar a foto: PUT na `url`, com estes cabeçalhos; depois confirmar com a `chave`. */
+export interface FotoEnvioResponse {
+  chave: string;
+  url: string;
+  cabecalhos: Record<string, string>;
+  expiraEm: ISODateTime;
 }
 
 // ---- código por e-mail (OTP) — /auth/otp/email ----
@@ -92,6 +102,7 @@ export interface PerfilResponse {
   id: UsuarioId;
   nome: string;
   bio?: string | null;
+  fotoUrl?: string | null;
   membroDesde?: ISODateTime | null;
   ehVoce: boolean;
   ano: number;
