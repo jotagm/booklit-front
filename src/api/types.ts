@@ -93,6 +93,9 @@ export interface LivroDoPerfil {
   capaUrl?: string | null;
   paginaAtual?: number | null;
   totalPaginas?: number | null;
+  /** Clube em que está lendo ("com Clube do Café"), quando quem vê também o enxerga. */
+  clubeId?: UUID | null;
+  clube?: string | null;
 }
 export interface ClubeEmComum {
   id: UUID;
@@ -298,6 +301,9 @@ export interface ComentarioResponse {
   createdAt: ISODateTime;
   updatedAt: ISODateTime;
   respostas: ComentarioResponse[];
+  /** Reações ao comentário (alvo comentario:<id>, o mesmo do feed). */
+  reacoes?: Partial<Record<TipoReacao, number>>;
+  minhaReacao?: TipoReacao | null;
 }
 
 // ---- google books (proxy do backend) ----

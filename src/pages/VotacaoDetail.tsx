@@ -132,7 +132,10 @@ export default function VotacaoDetail() {
     setErro(null);
     try {
       const novaLeitura = await encerrarVotacao(votacaoId);
-      navigate(`/leituras/${novaLeitura.id}`, { replace: true });
+      // O livro vencedor nasce sem meta e datas: o líder (quem encerra) já vai defini-las.
+      navigate(`/clubes/${votacao?.clubeId ?? novaLeitura.clubeId}/leituras/nova?leitura=${novaLeitura.id}`, {
+        replace: true,
+      });
     } catch (e) {
       setErro(extrairMensagemErro(e, "Não foi possível encerrar a votação."));
       setEncerrando(false);

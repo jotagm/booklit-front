@@ -17,6 +17,9 @@ export function quemEstaLendo(feed: FeedItemResponse[]): FeedItemResponse[] {
 
 const leuHoje = (i: FeedItemResponse) => (diasAte(i.quando) ?? -99) === 0;
 
+/** "2 d" — a coluna lateral do desktop (mock 2b) usa a forma curta. */
+const diasCurto = (i: FeedItemResponse) => `${Math.max(1, -(diasAte(i.quando) ?? -1))} d`;
+
 function legenda(i: FeedItemResponse): string {
   if (i.tipo === "CONCLUIU") return "terminou 🎉";
   return leuHoje(i) ? `pág. ${i.valorAtual}` : tempoRelativo(i.quando);
@@ -62,7 +65,7 @@ export function LendoAgoraLista({ itens }: { itens: FeedItemResponse[] }) {
                 </span>
               </span>
               <span className={`text-[11px] ${leuHoje(i) ? "font-semibold text-brand-600" : "text-muted-500"}`}>
-                {leuHoje(i) ? "hoje" : tempoRelativo(i.quando)}
+                {leuHoje(i) ? "hoje" : diasCurto(i)}
               </span>
             </Link>
           </li>

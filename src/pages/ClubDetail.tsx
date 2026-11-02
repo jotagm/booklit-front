@@ -23,7 +23,6 @@ import { Spinner, ErrorBanner, EmptyState } from "../components/Feedback";
 import Button from "../components/Button";
 import Avatar from "../components/Avatar";
 import FeedAtividade from "../components/FeedAtividade";
-import RoleBadge from "../components/RoleBadge";
 import Modal from "../components/Modal";
 import LinkDeConvite from "../components/LinkDeConvite";
 import BookCover from "../components/BookCover";
@@ -40,6 +39,7 @@ import {
   paraDate,
   rotuloPrazo,
 } from "../utils/date";
+import { leituraADefinir } from "../utils/format";
 
 export default function ClubDetail() {
   const { clubeId } = useParams<{ clubeId: string }>();
@@ -60,6 +60,8 @@ export default function ClubDetail() {
   const [votos, setVotos] = useState<VotoResponse[]>([]);
   const [aba, setAba] = useState<"atividade" | "membros" | "anteriores" | "sobre">("atividade");
   const [anteriores, setAnteriores] = useState<LeituraClubeResponse[] | null>(null);
+  // Livro escolhido na votação que o líder ainda não completou (sem meta e datas).
+  const [aDefinir, setADefinir] = useState<LeituraClubeResponse | null>(null);
 
   const carregar = useCallback(async () => {
     if (!clubeId || !usuario) return;
@@ -87,6 +89,12 @@ export default function ClubDetail() {
       ]);
       setRegistros(regs);
       setVotos(vts);
+      if (!leituraResp) {
+        const todas = await listarLeiturasPorClube(clubeId).catch(() => [] as LeituraClubeResponse[]);
+        setADefinir(todas.find(leituraADefinir) ?? null);
+      } else {
+        setADefinir(null);
+      }
 
       if (meuMembroResp?.papel === "LIDER") {
         const convitesResp = await listarConvitesPorClube(clubeId);
@@ -171,10 +179,11 @@ export default function ClubDetail() {
           <div className="flex flex-1 flex-col gap-2.5">
             <div className="flex items-center justify-between text-sm lg:block">
               <Link to="/clubes" className="text-cream-50/85 hover:text-cream-50">
-                ← clubes
+                ← <span className="lg:hidden">clubes</span>
+                <span className="hidden lg:inline">meus clubes</span>
               </Link>
-              <span className="lg:hidden">
-                <RoleBadge papel={meuMembro.papel} />
+              <span className="rounded-full bg-cream-50/20 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide lg:hidden">
+                {souLider ? "você é líder" : "membro"}
               </span>
             </div>
             <h1 className="font-serif text-[26px] leading-tight lg:text-4xl">{clube.nome}</h1>
@@ -190,7 +199,13 @@ export default function ClubDetail() {
             )}
           </div>
           <div className="flex items-center gap-2.5 lg:flex-col lg:items-end">
-            <FacePile pessoas={pessoas} max={5} tamanho={28} anel={cor} />
+            {/* mock 1b: 4 rostos e "+N" no celular; 2c: o grupo inteiro (até 6) no desktop */}
+            <span className="lg:hidden">
+              <FacePile pessoas={pessoas} max={4} tamanho={28} anel={cor} />
+            </span>
+            <span className="hidden lg:block">
+              <FacePile pessoas={pessoas} max={6} tamanho={34} anel={cor} />
+            </span>
             <span className="text-[13px]">
               {plural(membros.length, "membro", "membros")}
               {leituraAtiva && ` · ${noRitmo} no ritmo`}
@@ -219,19 +234,45 @@ export default function ClubDetail() {
                   <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-brand-600">leitura da vez</p>
                   <p className="font-serif text-lg leading-tight text-ink-900">{leituraAtiva.livroTitulo}</p>
                   <p className="text-xs text-muted-500">
-                    até {formatarDiaMes(leituraAtiva.dataFim)} · faltam {rotuloPrazo(diasAte(leituraAtiva.dataFim))}
+                    até {formatarDiaMes(leituraAtiva.dataFim)}
+                    <span className="lg:hidden"> · faltam {rotuloPrazo(diasAte(leituraAtiva.dataFim))}</span>
                   </p>
                 </div>
               </div>
               {registros.length > 0 && (
                 <PistaDoGrupo registros={registros} meta={leituraAtiva.valorMeta} meuUsuarioId={usuario?.id ?? null} />
               )}
-              <Link to={`/leituras/${leituraAtiva.id}`} className="flex justify-between text-xs text-muted-600">
+              <Link to={`/leituras/${leituraAtiva.id}`} className="flex justify-between text-xs text-muted-600 lg:hidden">
                 <span>
                   você está na {leituraAtiva.tipoMeta === "PAGINA" ? "pág." : "cap."} {minhaPagina}
                 </span>
                 <span className="font-semibold text-brand-600">abrir leitura →</span>
               </Link>
+              {/* desktop (mock 2c): botão cheio */}
+              <Link to={`/leituras/${leituraAtiva.id}`} className="btn-primary hidden justify-center text-sm lg:flex">
+                abrir leitura e discussão
+              </Link>
+            </div>
+          ) : aDefinir ? (
+            <div className="card flex flex-col gap-3 p-4">
+              <div className="flex items-center gap-3">
+                <BookCover url={aDefinir.livroCapaUrl} titulo={aDefinir.livroTitulo} size="md" />
+                <div className="min-w-0">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-brand-600">próxima leitura</p>
+                  <p className="font-serif text-lg leading-tight text-ink-900">{aDefinir.livroTitulo}</p>
+                  <p className="text-xs text-muted-500">
+                    escolhido na votação · {souLider ? "falta definir a meta e as datas" : "o líder vai definir a meta e as datas"}
+                  </p>
+                </div>
+              </div>
+              {souLider && (
+                <Link
+                  to={`/clubes/${clubeId}/leituras/nova?leitura=${aDefinir.id}`}
+                  className="btn-primary justify-center text-sm"
+                >
+                  definir meta e datas
+                </Link>
+              )}
             </div>
           ) : (
             <EmptyState
@@ -260,16 +301,18 @@ export default function ClubDetail() {
                 <span className="text-sm font-semibold text-brand-700">
                   🗳 próximo livro · fecha {nomeDoDiaSemana(votacaoAberta.dataEncerramento)}
                 </span>
-                <span className="chip-forte">votar</span>
+                <span className="chip-forte lg:hidden">votar</span>
               </div>
               <div className="flex items-center gap-2 text-xs text-brand-700">
                 <FacePile pessoas={pessoas.filter((p) => votaram.has(p.usuarioId))} tamanho={18} anel="#FBEEE2" max={4} />
                 <span>
-                  {votaram.size} de {membros.length} votaram
+                  {votaram.size} de {membros.length}
+                  <span className="lg:hidden"> votaram</span>
                   {faltam.length > 0 &&
                     ` · faltam ${faltam.slice(0, 2).join(" e ")}${faltam.length > 2 ? ` e +${faltam.length - 2}` : ""}`}
                 </span>
               </div>
+              <span className="hidden text-[13px] font-semibold text-brand-600 lg:block">ver opções →</span>
             </Link>
           ) : (
             souLider && (

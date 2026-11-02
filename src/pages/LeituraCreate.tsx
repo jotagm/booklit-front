@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
-import { criarLeitura } from "../api/leituras";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { atualizarLeitura, buscarLeituraPorId, criarLeitura } from "../api/leituras";
 import { extrairMensagemErro } from "../api/client";
 import type { TipoMeta } from "../api/types";
 import BookSearchPicker, { type LivroSelecionado } from "../components/BookSearchPicker";
@@ -14,6 +14,9 @@ import { analisarLinkSpotify } from "../utils/spotify";
 export default function LeituraCreate() {
   const { clubeId } = useParams<{ clubeId: string }>();
   const navigate = useNavigate();
+  // ?leitura=<id>: completar a leitura que veio da votação (livro já escolhido, sem meta e datas).
+  const [params] = useSearchParams();
+  const leituraId = params.get("leitura");
 
   const [livro, setLivro] = useState<LivroSelecionado | null>(null);
   const [tipoMeta, setTipoMeta] = useState<TipoMeta>("PAGINA");
@@ -23,6 +26,23 @@ export default function LeituraCreate() {
   const [spotifyUrl, setSpotifyUrl] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!leituraId) return;
+    buscarLeituraPorId(leituraId)
+      .then((l) => {
+        setLivro({
+          livroGoogleId: l.livroGoogleId,
+          livroTitulo: l.livroTitulo,
+          livroCapaUrl: l.livroCapaUrl,
+          livroAutor: l.livroAutor ?? null,
+        });
+        if (l.valorMeta > 0) setValorMeta(l.valorMeta);
+        if (l.tipoMeta) setTipoMeta(l.tipoMeta);
+        if (l.spotifyUrl) setSpotifyUrl(l.spotifyUrl);
+      })
+      .catch((e) => setErro(extrairMensagemErro(e, "Não foi possível carregar a leitura escolhida.")));
+  }, [leituraId]);
 
   // O Google costuma informar o número de páginas do volume; usar isso como meta poupa
   // o líder de procurar a contagem na contracapa. Só preenche quando a meta é em páginas.
@@ -43,7 +63,7 @@ export default function LeituraCreate() {
     setErro(null);
     setEnviando(true);
     try {
-      await criarLeitura({
+      const dados = {
         clubeId,
         livroGoogleId: livro.livroGoogleId,
         livroTitulo: livro.livroTitulo,
@@ -54,8 +74,14 @@ export default function LeituraCreate() {
         dataInicio: paraLocalDateTimeIso(new Date(dataInicio)),
         dataFim: paraLocalDateTimeIso(new Date(dataFim)),
         spotifyUrl: spotifyUrl.trim() || null,
-      });
-      navigate(`/clubes/${clubeId}`, { replace: true });
+      };
+      if (leituraId) {
+        await atualizarLeitura(leituraId, dados);
+        navigate(`/leituras/${leituraId}`, { replace: true });
+      } else {
+        await criarLeitura(dados);
+        navigate(`/clubes/${clubeId}`, { replace: true });
+      }
     } catch (err) {
       setErro(extrairMensagemErro(err, "Não foi possível iniciar a leitura."));
     } finally {
@@ -68,7 +94,12 @@ export default function LeituraCreate() {
       <Link to={`/clubes/${clubeId}`} className="text-sm text-muted-600 hover:text-ink-800">
         ← voltar
       </Link>
-      <h1 className="mt-3 mb-5 font-serif text-2xl text-ink-900">nova leitura</h1>
+      <h1 className="mt-3 mb-1 font-serif text-2xl text-ink-900">{leituraId ? "definir a leitura" : "nova leitura"}</h1>
+      <p className="mb-5 text-sm text-muted-600">
+        {leituraId
+          ? "o clube escolheu este livro na votação: defina a meta e as datas para a leitura começar."
+          : ""}
+      </p>
 
       {erro && (
         <div className="mb-4">
@@ -142,7 +173,7 @@ export default function LeituraCreate() {
         />
 
         <Button type="submit" fullWidth loading={enviando} disabled={!livro}>
-          começar leitura
+          {leituraId ? "salvar e começar" : "começar leitura"}
         </Button>
       </form>
     </div>

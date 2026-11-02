@@ -101,8 +101,16 @@ function LivroLendo({ livro }: { livro: LivroDoPerfil }) {
     <li className="card flex items-center gap-3 p-3.5">
       <BookCover url={livro.capaUrl} titulo={livro.titulo} size="md" />
       <div className="min-w-0 flex-1">
-        <p className="truncate font-serif text-[15px] text-ink-900">{livro.titulo}</p>
-        {livro.autor && <p className="truncate text-xs text-muted-600">{livro.autor}</p>}
+        <p className="truncate font-serif text-[17px] text-ink-900">{livro.titulo}</p>
+        {/* Mock 1e: "com Clube do Café · pág. 118"; leitura só pessoal mostra o autor. */}
+        <p className="truncate text-xs text-muted-600">
+          {[
+            livro.clube ? `com ${livro.clube}` : livro.autor,
+            livro.paginaAtual ? `pág. ${livro.paginaAtual}` : null,
+          ]
+            .filter(Boolean)
+            .join(" · ")}
+        </p>
         {total > 0 && (
           <div className="mt-2">
             <ProgressBar atual={livro.paginaAtual ?? 0} meta={total} />

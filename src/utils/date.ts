@@ -125,6 +125,22 @@ export function formatarDiaMes(iso: string | null | undefined): string {
     .replace(".", "");
 }
 
+// "1 a 30 de novembro" · "15 de outubro a 30 de novembro" · com o ano quando ele muda.
+export function formatarPeriodo(inicio: string | null | undefined, fim: string | null | undefined): string {
+  const a = paraDate(inicio);
+  const b = paraDate(fim);
+  if (!a || !b) return b ? `até ${formatarDiaMes(fim)}` : "—";
+  const mes = (d: Date) => d.toLocaleDateString("pt-BR", { month: "long" });
+  const anoDe = (d: Date) => (d.getFullYear() !== new Date().getFullYear() ? ` de ${d.getFullYear()}` : "");
+  if (a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth()) {
+    return `${a.getDate()} a ${b.getDate()} de ${mes(b)}${anoDe(b)}`;
+  }
+  if (a.getFullYear() === b.getFullYear()) {
+    return `${a.getDate()} de ${mes(a)} a ${b.getDate()} de ${mes(b)}${anoDe(b)}`;
+  }
+  return `${a.getDate()} de ${mes(a)} de ${a.getFullYear()} a ${b.getDate()} de ${mes(b)} de ${b.getFullYear()}`;
+}
+
 // "set 2026" — período das leituras anteriores.
 export function formatarMesAno(iso: string | null | undefined): string {
   const d = paraDate(iso);

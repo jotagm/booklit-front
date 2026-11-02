@@ -13,10 +13,13 @@ export default function TrilhaDaLeitura({
   leitura,
   souLider,
   onAtualizada,
+  compacta = false,
 }: {
   leitura: LeituraClubeResponse;
   souLider: boolean;
   onAtualizada: (l: LeituraClubeResponse) => void;
+  /** Coluna lateral do desktop (mock 2d): uma pílula tracejada que abre o link no Spotify. */
+  compacta?: boolean;
 }) {
   const [editando, setEditando] = useState(false);
   const [url, setUrl] = useState(leitura.spotifyUrl ?? "");
@@ -45,6 +48,31 @@ export default function TrilhaDaLeitura({
   }
 
   const link = analisarLinkSpotify(leitura.spotifyUrl);
+
+  const editar = () => {
+    setUrl(leitura.spotifyUrl ?? "");
+    setEditando(true);
+  };
+
+  if (compacta && !editando) {
+    return (
+      <div className="flex items-center justify-between gap-3 rounded-xl2 border-[1.5px] border-dashed border-ink-800/25 px-4 py-3 text-[13px]">
+        <span className="text-muted-600">🎧 trilha da leitura</span>
+        <span className="flex shrink-0 gap-3 font-semibold">
+          {leitura.spotifyUrl && (
+            <a href={leitura.spotifyUrl} target="_blank" rel="noopener noreferrer" className="text-brand-600 hover:text-brand-700">
+              abrir no Spotify
+            </a>
+          )}
+          {souLider && (
+            <button type="button" onClick={editar} className="text-muted-600 hover:text-ink-800">
+              {leitura.spotifyUrl ? "trocar" : "+ adicionar"}
+            </button>
+          )}
+        </span>
+      </div>
+    );
+  }
 
   return (
     <section className="mt-6">

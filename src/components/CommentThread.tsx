@@ -3,7 +3,8 @@ import type { FormEvent } from "react";
 import type { ComentarioResponse, UsuarioId } from "../api/types";
 import Avatar from "./Avatar";
 import Button from "./Button";
-import { formatarDataHora } from "../utils/date";
+import { formatarDataHora, tempoRelativo } from "../utils/date";
+import { reagir, removerReacao } from "../api/feed";
 
 interface Props {
   comentario: ComentarioResponse;
@@ -14,6 +15,8 @@ interface Props {
   meuProgresso?: number | null;
   /** Unidade da meta, para o chip ("pág. 25") e o aviso ("20 páginas à frente"). */
   emCapitulos?: boolean;
+  /** Clube da leitura: é para ele que vai a reação (❤️) do comentário. */
+  clubeId?: string;
   /** "ver tudo" no cabeçalho da discussão: mostra todos os spoilers de uma vez. */
   revelarTodos?: boolean;
   onResponder: (paiId: string, conteudo: string) => Promise<void>;
@@ -29,6 +32,7 @@ export default function CommentThread({
   meuProgresso = null,
   emCapitulos = false,
   revelarTodos = false,
+  clubeId,
   onResponder,
   onEditar,
   onExcluir,
@@ -39,6 +43,30 @@ export default function CommentThread({
   const [textoEdicao, setTextoEdicao] = useState(comentario.conteudo);
   const [enviando, setEnviando] = useState(false);
   const [revelado, setRevelado] = useState(false);
+  // ❤️ do comentário: o alvo é comentario:<id>, o mesmo do feed (reagir lá ou aqui é igual).
+  const [curtidas, setCurtidas] = useState(comentario.reacoes?.CURTIR ?? 0);
+  const [curti, setCurti] = useState(comentario.minhaReacao === "CURTIR");
+  useEffect(() => {
+    setCurtidas(comentario.reacoes?.CURTIR ?? 0);
+    setCurti(comentario.minhaReacao === "CURTIR");
+  }, [comentario.reacoes, comentario.minhaReacao]);
+
+  async function alternarCurtida() {
+    if (!clubeId) return;
+    const antes = { curtidas, curti };
+    const agora = !curti;
+    setCurti(agora);
+    setCurtidas((n) => Math.max(0, n + (agora ? 1 : -1)));
+    try {
+      const alvo = `comentario:${comentario.id}`;
+      const r = agora ? await reagir(clubeId, alvo, "CURTIR") : await removerReacao(alvo);
+      setCurtidas(r.reacoes.CURTIR ?? 0);
+      setCurti(r.minhaReacao === "CURTIR");
+    } catch {
+      setCurtidas(antes.curtidas);
+      setCurti(antes.curti);
+    }
+  }
   // "só até a pág. N" esconde de novo tudo, inclusive o que foi aberto um a um.
   useEffect(() => {
     if (!revelarTodos) setRevelado(false);
@@ -82,18 +110,35 @@ export default function CommentThread({
       <div className="flex gap-3">
         <Avatar nome={comentario.usuarioNome} usuarioId={comentario.usuarioId} fotoUrl={comentario.usuarioFotoUrl} size="sm" />
         <div className="min-w-0 flex-1">
-          <div className="rounded-xl bg-ink-800/[0.04] px-3 py-2">
-            <div className="flex items-baseline justify-between gap-2">
-              <span className="text-sm font-semibold text-ink-900">{comentario.usuarioNome}</span>
-              <span className="flex shrink-0 items-center gap-1.5 text-[11px] text-muted-500">
+          {/* No desktop o comentário fica num cartão claro e a resposta num balão mais escuro (mock 2d). */}
+          <div
+            className={
+              ehResposta
+                ? "rounded-xl bg-ink-800/[0.06] px-3 py-2"
+                : "rounded-xl bg-ink-800/[0.04] px-3 py-2 lg:rounded-2xl lg:border lg:border-ink-800/10 lg:bg-cream-50 lg:px-4 lg:py-3"
+            }
+          >
+            {ehResposta ? (
+              // Resposta: "Mariana · pág. 40", sem o selo.
+              <p className="text-sm text-ink-900">
+                <span className="font-semibold">{comentario.usuarioNome.trim().split(/\s+/)[0]}</span>
                 {pagina !== null && (
-                  <span className="rounded-full bg-brand-50 px-2 text-[11px] font-semibold text-brand-600">
+                  <span className="text-muted-600">
+                    {" "}
+                    · {rotuloUnidade} {pagina}
+                  </span>
+                )}
+              </p>
+            ) : (
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="text-sm font-semibold text-ink-900">{comentario.usuarioNome}</span>
+                {pagina !== null && (
+                  <span className="shrink-0 rounded-full bg-brand-50 px-2 text-[11px] font-semibold text-brand-600">
                     {rotuloUnidade} {pagina}
                   </span>
                 )}
-                {formatarDataHora(comentario.createdAt)}
-              </span>
-            </div>
+              </div>
+            )}
 
             {editando ? (
               <form onSubmit={salvarEdicao} className="mt-1.5">
@@ -141,7 +186,19 @@ export default function CommentThread({
           </div>
 
           {!comentario.removido && !editando && !escondido && (
-            <div className="mt-1 flex gap-3 pl-3 text-xs font-semibold text-muted-500">
+            <div className="mt-1 flex items-center gap-3 pl-3 text-xs font-semibold text-muted-500">
+              {clubeId && (
+                <button
+                  type="button"
+                  onClick={alternarCurtida}
+                  aria-pressed={curti}
+                  aria-label="curtir"
+                  className={`flex items-center gap-1 ${curti ? "text-brand-600" : "hover:text-brand-600"}`}
+                >
+                  <span className={curti ? "" : "opacity-60 grayscale"}>❤️</span>
+                  {curtidas > 0 && <span>{curtidas}</span>}
+                </button>
+              )}
               {!ehResposta && (
                 <button onClick={() => setRespondendo((v) => !v)} className="hover:text-brand-600">
                   responder
@@ -157,6 +214,9 @@ export default function CommentThread({
                   excluir
                 </button>
               )}
+              <span className="font-normal" title={formatarDataHora(comentario.createdAt)}>
+                {tempoRelativo(comentario.createdAt)}
+              </span>
             </div>
           )}
 
@@ -187,6 +247,7 @@ export default function CommentThread({
                   meuProgresso={meuProgresso}
                   emCapitulos={emCapitulos}
                   revelarTodos={revelarTodos}
+                  clubeId={clubeId}
                   onResponder={onResponder}
                   onEditar={onEditar}
                   onExcluir={onExcluir}

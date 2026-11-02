@@ -20,7 +20,7 @@ import StepperProgresso from "../components/StepperProgresso";
 import { LendoAgoraFaixa, LendoAgoraLista, quemEstaLendo } from "../components/LendoAgora";
 import Button from "../components/Button";
 import { Spinner, ErrorBanner, EmptyState } from "../components/Feedback";
-import { diasAte, nomeDoDiaSemana, rotuloPrazo } from "../utils/date";
+import { diasAte, formatarDiaMes, nomeDoDiaSemana } from "../utils/date";
 
 function saudacao(agora = new Date()): string {
   const hora = agora.getHours();
@@ -180,7 +180,7 @@ export default function ClubList() {
             {painel.prazos.length > 0 && (
               <section className="order-6">
                 <h2 className="section-label">próximos prazos</h2>
-                <ul className="card divide-y divide-ink-800/10">
+                <ul className="flex flex-col gap-2">
                   {painel.prazos.map((prazo) => (
                     <li key={prazo.id}>
                       <LinhaPrazo prazo={prazo} />
@@ -278,22 +278,50 @@ function ContinuarLeitura({
   );
 }
 
-function LinhaPrazo({ prazo }: { prazo: Prazo }) {
-  const urgente = (prazo.dias ?? 99) <= 3;
+/** "em 3 dias" · "amanhã" · "hoje" */
+function emQuanto(dias: number | null): string {
+  if (dias === null) return "";
+  if (dias <= 0) return "hoje";
+  if (dias === 1) return "amanhã";
+  return `em ${dias} dias`;
+}
 
-  return (
-    <Link to={prazo.para} className="flex items-center justify-between gap-3 px-4 py-3.5 hover:bg-ink-800/[0.03]">
-      <div className="min-w-0">
-        <p className="truncate text-sm text-ink-900">{prazo.titulo}</p>
-        <p className="truncate text-xs text-muted-500">{prazo.subtitulo}</p>
-      </div>
-      <span
-        className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${
-          urgente ? "bg-brand-50 text-brand-700" : "bg-ink-800/[0.06] text-muted-700"
-        }`}
+/**
+ * Mock 2b: a votação vira um cartão em destaque com quem já votou; o fim da leitura, uma linha
+ * simples com a data. O clube fica na dica (title), como no mock, que não o mostra na linha.
+ */
+function LinhaPrazo({ prazo }: { prazo: Prazo }) {
+  if (prazo.tipo === "votacao") {
+    const votaram = prazo.votaram ?? [];
+    return (
+      <Link
+        to={prazo.para}
+        title={prazo.subtitulo}
+        className="flex flex-col gap-1.5 rounded-[14px] bg-brand-50 px-3.5 py-3 hover:opacity-90"
       >
-        {rotuloPrazo(prazo.dias)}
+        <span className="flex items-baseline justify-between gap-2 text-brand-700">
+          <span className="text-[13px] font-semibold">🗳 vote até {nomeDoDiaSemana(prazo.data)}</span>
+          <span className="shrink-0 text-xs">{emQuanto(prazo.dias)}</span>
+        </span>
+        <span className="flex items-center gap-2 text-xs text-brand-700">
+          {votaram.length > 0 && <FacePile pessoas={votaram} tamanho={18} anel="#FBEEE2" max={4} />}
+          <span className="min-w-0 truncate">
+            {votaram.length} de {prazo.totalMembros ?? 0} já votaram
+          </span>
+        </span>
+      </Link>
+    );
+  }
+  return (
+    <Link
+      to={prazo.para}
+      title={prazo.subtitulo}
+      className="flex items-baseline justify-between gap-3 rounded-[14px] border border-ink-800/10 bg-cream-50 px-3.5 py-3 hover:bg-ink-800/[0.03]"
+    >
+      <span className="min-w-0 truncate text-[13px] text-ink-900">
+        fim de {prazo.titulo}
       </span>
+      <span className="shrink-0 text-xs text-muted-600">{formatarDiaMes(prazo.data)}</span>
     </Link>
   );
 }

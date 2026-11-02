@@ -187,6 +187,8 @@ export default function FeedAtividade({
           <li key={item.id}>
             {item.tipo === "MEMBRO_ENTROU" ? (
               <CartaoEntrada item={item} mostrarClube={mostrarClube} onAcenar={() => aoReagir(item, "ACENO")} />
+            ) : item.tipo === "CONCLUIU" && !mostrarClube ? (
+              <CartaoConclusao item={item} onReagir={(tipo) => aoReagir(item, tipo)} />
             ) : (
               <Cartao
                 item={item}
@@ -377,6 +379,52 @@ function CartaoEntrada({
         )}
       </div>
       {lado}
+    </div>
+  );
+}
+
+/**
+ * "terminou" dentro do clube (mock 2c): uma linha só, com as reações que já têm contagem à
+ * direita ("👏 5"). Sem nenhuma, fica o 👏 para ser o primeiro a aplaudir.
+ */
+function CartaoConclusao({ item, onReagir }: { item: FeedItemResponse; onReagir: (tipo: TipoReacao) => void }) {
+  const destino = destinoDe(item);
+  const comContagem = REACOES.filter(({ tipo }) => (item.reacoes[tipo] ?? 0) > 0 || item.minhaReacao === tipo);
+  const visiveis = comContagem.length > 0 ? comContagem : REACOES.filter(({ tipo }) => tipo === "PALMAS");
+  return (
+    <div className="flex items-center gap-3 rounded-xl2 border border-brand-500/40 bg-brand-50 px-5 py-3.5">
+      <div className="min-w-0 flex-1">
+        {destino ? (
+          <Link to={destino} className="block hover:opacity-90">
+            <Cabecalho item={item} mostrarClube={false} />
+          </Link>
+        ) : (
+          <Cabecalho item={item} mostrarClube={false} />
+        )}
+      </div>
+      <div className="flex shrink-0 gap-1.5">
+        {visiveis.map(({ tipo, emoji, rotulo }) => {
+          const total = item.reacoes[tipo] ?? 0;
+          const marcada = item.minhaReacao === tipo;
+          return (
+            <button
+              key={tipo}
+              type="button"
+              onClick={() => onReagir(tipo)}
+              aria-label={rotulo}
+              aria-pressed={marcada}
+              className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-[13px] transition-colors ${
+                marcada
+                  ? "border-brand-500 bg-brand-500/10 text-brand-600"
+                  : "border-ink-800/15 text-muted-700 hover:bg-ink-800/[0.04]"
+              }`}
+            >
+              <span>{emoji}</span>
+              {total > 0 && <strong className="text-xs">{total}</strong>}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

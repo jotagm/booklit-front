@@ -21,7 +21,8 @@ import CommentThread from "../components/CommentThread";
 import TrilhaDaLeitura from "../components/TrilhaDaLeitura";
 import StepperProgresso from "../components/StepperProgresso";
 import PistaDoGrupo, { resumoDaPista } from "../components/PistaDoGrupo";
-import { formatarData } from "../utils/date";
+import { formatarDiaMes, formatarPeriodo } from "../utils/date";
+import { leituraADefinir } from "../utils/format";
 
 function contarComentarios(arvore: ComentarioResponse[]): number {
   return arvore.reduce((n, c) => n + 1 + contarComentarios(c.respostas ?? []), 0);
@@ -142,6 +143,25 @@ export default function LeituraDetail() {
   const comRegistro = new Set(registros.map((r) => r.usuarioId));
   const naoComecaram = membros.filter((m) => !comRegistro.has(m.usuarioId)).map((m) => primeiro(m.nomeUsuario));
 
+  // Livro escolhido na votação, ainda sem meta e datas: no lugar do stepper, o que falta.
+  const pendente = leituraADefinir(leitura);
+  const cartaoPendente = (
+    <section className="card flex flex-col gap-3 p-4">
+      <p className="text-sm text-ink-800">
+        O clube escolheu este livro na votação.{" "}
+        {souLider ? "Defina a meta e as datas para a leitura começar." : "O líder ainda vai definir a meta e as datas."}
+      </p>
+      {souLider && (
+        <Link
+          to={`/clubes/${leitura.clubeId}/leituras/nova?leitura=${leitura.id}`}
+          className="btn-primary justify-center text-sm"
+        >
+          definir meta e datas
+        </Link>
+      )}
+    </section>
+  );
+
   const cartaoProgresso = (
     <section className="card flex flex-col gap-3 p-4">
       <h2 className="section-label mb-0 hidden lg:block">seu progresso</h2>
@@ -156,6 +176,9 @@ export default function LeituraDetail() {
   );
 
   const trilha = <TrilhaDaLeitura leitura={leitura} souLider={souLider} onAtualizada={setLeitura} />;
+  const trilhaCompacta = (
+    <TrilhaDaLeitura leitura={leitura} souLider={souLider} onAtualizada={setLeitura} compacta />
+  );
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 pb-28 pt-6 lg:grid lg:grid-cols-[minmax(0,1fr)_300px] lg:gap-7 lg:px-10 lg:pb-0 lg:pt-8">
@@ -180,12 +203,21 @@ export default function LeituraDetail() {
           <div className="min-w-0">
             <h1 className="font-serif text-2xl leading-tight text-ink-900 lg:text-[32px]">{leitura.livroTitulo}</h1>
             <p className="mt-1 text-[13px] text-muted-600">
-              {leitura.livroAutor && <>{leitura.livroAutor} · </>}até {formatarData(leitura.dataFim)}
+              {leitura.livroAutor && <>{leitura.livroAutor} · </>}
+              {/* mock 1c: "até 30 nov" no celular; 2d: o período inteiro no desktop */}
+              {pendente ? (
+                "datas a definir"
+              ) : (
+                <>
+                  <span className="lg:hidden">até {formatarDiaMes(leitura.dataFim)}</span>
+                  <span className="hidden lg:inline">{formatarPeriodo(leitura.dataInicio, leitura.dataFim)}</span>
+                </>
+              )}
             </p>
           </div>
         </div>
 
-        <div className="mt-4 lg:hidden">{cartaoProgresso}</div>
+        <div className="mt-4 lg:hidden">{pendente ? cartaoPendente : cartaoProgresso}</div>
 
         {/* discussão */}
         <section className="mt-6 flex-1">
@@ -220,6 +252,7 @@ export default function LeituraDetail() {
                   meuProgresso={meuRegistro ? minhaPosicao : null}
                   emCapitulos={leitura.tipoMeta === "CAPITULO"}
                   revelarTodos={revelarTodos}
+                  clubeId={leitura.clubeId}
                   onResponder={responder}
                   onEditar={editar}
                   onExcluir={excluir}
@@ -241,7 +274,7 @@ export default function LeituraDetail() {
             <Avatar nome={usuario.nome} usuarioId={usuario.id} fotoUrl={usuario.fotoUrl} size="sm" />
             <input
               className="field-input !rounded-full !py-2.5"
-              placeholder={`comentar na ${unidade} ${minhaPosicao}…`}
+              placeholder={minhaPosicao > 0 ? `comentar na ${unidade} ${minhaPosicao}…` : "comentar…"}
               value={novoComentario}
               onChange={(e) => setNovoComentario(e.target.value)}
             />
@@ -250,14 +283,21 @@ export default function LeituraDetail() {
               disabled={enviandoComentario || !novoComentario.trim()}
               className="shrink-0 text-sm font-semibold text-brand-600 disabled:opacity-50 lg:btn-primary"
             >
-              {enviandoComentario ? "…" : "enviar"}
+              {enviandoComentario ? (
+                "…"
+              ) : (
+                <>
+                  <span className="lg:hidden">enviar</span>
+                  <span className="hidden lg:inline">publicar</span>
+                </>
+              )}
             </button>
           </form>
         )}
       </div>
 
       <aside className="hidden lg:sticky lg:top-8 lg:flex lg:flex-col lg:gap-4 lg:self-start lg:pt-9">
-        {cartaoProgresso}
+        {pendente ? cartaoPendente : cartaoProgresso}
 
         <section className="card p-4">
           <h2 className="section-label">o grupo</h2>
@@ -300,7 +340,7 @@ export default function LeituraDetail() {
           </ul>
         </section>
 
-        {trilha}
+        {trilhaCompacta}
       </aside>
     </div>
   );

@@ -6,6 +6,7 @@ import { listarRegistrosPorLeitura } from "../api/registros";
 import { listarComentariosPorLeitura } from "../api/comentarios";
 import { listarVotacoesPorClube } from "../api/votacoes";
 import { listarOpcoesPorVotacao } from "../api/opcoesVoto";
+import { listarVotosPorVotacao } from "../api/votos";
 import { extrairMensagemErro } from "../api/client";
 import type {
   ComentarioResponse,
@@ -15,6 +16,7 @@ import type {
   UsuarioId,
   UUID,
   VotacaoResponse,
+  VotoResponse,
 } from "../api/types";
 import { diasAte, nomeDoDiaSemana, paraDate, sequenciaDeSemanas } from "../utils/date";
 
@@ -31,6 +33,7 @@ export interface ClubeDoPainel {
   membrosDoClube: UsuarioClubeResponse[];
   votacaoAberta: VotacaoResponse | null;
   opcoesDaVotacao: number;
+  votosDaVotacao: VotoResponse[];
 }
 
 export type TipoEvento = "terminou" | "progresso" | "comentou" | "votacao" | "sugestao" | "entrou";
@@ -47,6 +50,10 @@ export interface Evento {
 
 export interface Prazo {
   id: string;
+  tipo: "votacao" | "leitura";
+  /** Votação: quem já votou e quantos membros o clube tem ("3 de 6 já votaram"). */
+  votaram?: { usuarioId: UsuarioId; nome: string; fotoUrl?: string | null }[];
+  totalMembros?: number;
   titulo: string;
   subtitulo: string;
   data: string;
@@ -99,6 +106,9 @@ async function carregarClube(
       : Promise.resolve([] as ComentarioResponse[]),
     votacaoAberta ? listarOpcoesPorVotacao(votacaoAberta.id).catch(() => []) : Promise.resolve([]),
   ]);
+  const votos = votacaoAberta
+    ? await listarVotosPorVotacao(votacaoAberta.id).catch(() => [] as VotoResponse[])
+    : [];
 
   const meuRegistro = registros.find((r) => r.usuarioId === usuarioId) ?? null;
   const eventos: Evento[] = [];
@@ -180,7 +190,16 @@ async function carregarClube(
   }
 
   return {
-    clube: { membro, leituraAtiva, meuRegistro, registros, membrosDoClube, votacaoAberta, opcoesDaVotacao: opcoes.length },
+    clube: {
+      membro,
+      leituraAtiva,
+      meuRegistro,
+      registros,
+      membrosDoClube,
+      votacaoAberta,
+      opcoesDaVotacao: opcoes.length,
+      votosDaVotacao: votos,
+    },
     eventos,
   };
 }
@@ -205,6 +224,11 @@ export function usePainel() {
         if (c.votacaoAberta) {
           prazos.push({
             id: `prazo-votacao-${c.votacaoAberta.id}`,
+            tipo: "votacao",
+            votaram: c.membrosDoClube
+              .filter((m) => c.votosDaVotacao.some((v) => v.usuarioId === m.usuarioId))
+              .map((m) => ({ usuarioId: m.usuarioId, nome: m.nomeUsuario, fotoUrl: m.fotoUrl })),
+            totalMembros: c.membrosDoClube.length,
             titulo: "votação do próximo livro",
             subtitulo: c.membro.nomeClube,
             data: c.votacaoAberta.dataEncerramento,
@@ -215,6 +239,7 @@ export function usePainel() {
         if (c.leituraAtiva) {
           prazos.push({
             id: `prazo-leitura-${c.leituraAtiva.id}`,
+            tipo: "leitura",
             titulo: c.leituraAtiva.livroTitulo,
             subtitulo: c.membro.nomeClube,
             data: c.leituraAtiva.dataFim,
