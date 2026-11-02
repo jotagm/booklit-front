@@ -186,6 +186,8 @@ export interface LeituraClubeRequest {
   dataFim: ISODateTime;
   // Link do Spotify (playlist, álbum, podcast ou audiobook). O backend normaliza e valida.
   spotifyUrl?: string | null;
+  // Autor(es) como o Google Books devolve; opcional.
+  livroAutor?: string | null;
 }
 export interface LeituraClubeResponse {
   id: UUID;
@@ -199,6 +201,7 @@ export interface LeituraClubeResponse {
   dataInicio: ISODateTime;
   dataFim: ISODateTime;
   spotifyUrl: string | null;
+  livroAutor?: string | null;
 }
 
 // ---- registro de progresso ----
@@ -229,6 +232,13 @@ export interface VotacaoResponse {
   status: VotacaoStatus;
   dataAbertura: ISODateTime;
   dataEncerramento: ISODateTime;
+  /** Último "lembrar quem não votou" do líder; um por 24 horas. */
+  ultimoLembreteEm?: ISODateTime | null;
+}
+/** POST /votacoes/{id}/lembrete */
+export interface LembreteVotacaoResponse {
+  notificados: number;
+  lembradoEm: ISODateTime;
 }
 
 export interface OpcaoVotoRequest {
@@ -237,6 +247,7 @@ export interface OpcaoVotoRequest {
   livroGoogleId: string;
   livroTitulo: string;
   livroCapaUrl?: string | null;
+  livroAutor?: string | null;
 }
 export interface OpcaoVotoResponse {
   id: UUID;
@@ -248,6 +259,7 @@ export interface OpcaoVotoResponse {
   livroCapaUrl: string | null;
   // Quantos membros do clube têm este livro no "quero ler" da estante pessoal.
   membrosQueremLer: number;
+  livroAutor?: string | null;
 }
 
 export interface VotoRequest {
@@ -281,6 +293,8 @@ export interface ComentarioResponse {
   usuarioFotoUrl?: string | null;
   conteudo: string;
   removido: boolean;
+  /** Onde o autor estava na leitura ao comentar (na unidade da meta); nulo em comentários antigos. */
+  paginaAutor?: number | null;
   createdAt: ISODateTime;
   updatedAt: ISODateTime;
   respostas: ComentarioResponse[];
@@ -376,7 +390,8 @@ export interface EstanteResumoResponse {
 }
 
 // ---- feed e reações ----
-export type TipoReacao = "CURTIR" | "FOGO" | "PALMAS";
+// ACENO = 👋 boas-vindas, só em "entrou no clube".
+export type TipoReacao = "CURTIR" | "FOGO" | "PALMAS" | "ACENO";
 export type TipoFeed =
   | "PROGRESSO"
   | "CONCLUIU"

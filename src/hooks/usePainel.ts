@@ -26,6 +26,8 @@ export interface ClubeDoPainel {
   membro: UsuarioClubeResponse;
   leituraAtiva: LeituraClubeResponse | null;
   meuRegistro: RegistroResponse | null;
+  /** Registros de todos os membros na leitura ativa (vazio sem leitura). */
+  registros: RegistroResponse[];
   membrosDoClube: UsuarioClubeResponse[];
   votacaoAberta: VotacaoResponse | null;
   opcoesDaVotacao: number;
@@ -56,7 +58,11 @@ export interface Painel {
   clubes: ClubeDoPainel[];
   eventos: Evento[];
   prazos: Prazo[];
-  continuarLeitura: { leitura: LeituraClubeResponse; registro: RegistroResponse | null } | null;
+  continuarLeitura: {
+    leitura: LeituraClubeResponse;
+    registro: RegistroResponse | null;
+    registrosDoGrupo: RegistroResponse[];
+  } | null;
   semanasDeSequencia: number;
 }
 
@@ -174,7 +180,7 @@ async function carregarClube(
   }
 
   return {
-    clube: { membro, leituraAtiva, meuRegistro, membrosDoClube, votacaoAberta, opcoesDaVotacao: opcoes.length },
+    clube: { membro, leituraAtiva, meuRegistro, registros, membrosDoClube, votacaoAberta, opcoesDaVotacao: opcoes.length },
     eventos,
   };
 }
@@ -236,7 +242,7 @@ export function usePainel() {
         eventos,
         prazos: prazos.filter((p) => (p.dias ?? -1) >= 0).slice(0, 5),
         continuarLeitura: escolhida
-          ? { leitura: escolhida.leituraAtiva!, registro: escolhida.meuRegistro }
+          ? { leitura: escolhida.leituraAtiva!, registro: escolhida.meuRegistro, registrosDoGrupo: escolhida.registros }
           : null,
         semanasDeSequencia: sequenciaDeSemanas(datasDeLeitura),
       });

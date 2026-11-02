@@ -69,6 +69,9 @@ export function estaNoIntervalo(inicio: string, fim: string, agora = new Date())
 
 const MS_POR_DIA = 24 * 60 * 60 * 1000;
 
+// Quantos dias sem atualizar o progresso já tiram a pessoa do "no ritmo".
+export const DIAS_SEM_REGISTRO = 5;
+
 function meiaNoite(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
 }

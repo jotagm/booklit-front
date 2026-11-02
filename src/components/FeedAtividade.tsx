@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { listarFeed, reagir, removerReacao } from "../api/feed";
 import type { FeedItemResponse, TipoReacao, UUID } from "../api/types";
@@ -92,18 +92,27 @@ export default function FeedAtividade({
   limite = 20,
   titulo = "atividade dos seus clubes",
   mostrarClube = true,
+  onItens,
 }: {
   clubeId?: UUID;
   limite?: number;
   titulo?: string;
   mostrarClube?: boolean;
+  /** Recebe os itens carregados (a home deriva "lendo agora" deles sem buscar de novo). */
+  onItens?: (itens: FeedItemResponse[]) => void;
 }) {
   const [itens, setItens] = useState<FeedItemResponse[]>([]);
   const [erroReacao, setErroReacao] = useState(false);
+  // Em ref para o efeito de carga não depender da identidade do callback.
+  const onItensRef = useRef(onItens);
+  onItensRef.current = onItens;
 
   useEffect(() => {
     listarFeed(clubeId, limite)
-      .then(setItens)
+      .then((r) => {
+        setItens(r);
+        onItensRef.current?.(r);
+      })
       .catch(() => setItens([]));
   }, [clubeId, limite]);
 
@@ -128,7 +137,7 @@ export default function FeedAtividade({
 
   return (
     <section>
-      <h2 className="section-label">{titulo}</h2>
+      {titulo && <h2 className="section-label">{titulo}</h2>}
       {erroReacao && <p className="mb-2 text-xs text-red-600">não foi possível reagir agora.</p>}
       <ul className="flex flex-col gap-3">
         {itens.map((item) => {
@@ -151,11 +160,12 @@ export default function FeedAtividade({
                 <p className="mt-0.5 text-xs text-muted-500">
                   {mostrarClube ? `${item.clubeNome} · ` : ""}
                   {tempoRelativo(item.quando)}
+                  {/* Em comentário, valorAtual é onde o autor estava ao escrever. */}
+                  {item.tipo === "COMENTARIO" && item.valorAtual != null &&
+                    ` · ${item.unidade === "capítulos" ? "cap." : "pág."} ${item.valorAtual}`}
                 </p>
                 {item.tipo === "COMENTARIO" && item.texto && (
-                  <blockquote className="mt-2 border-l-[3px] border-brand-500 bg-cream-50 px-3 py-2 text-[13px] text-ink-800">
-                    {item.texto}
-                  </blockquote>
+                  <p className="mt-2 font-serif text-base leading-relaxed text-ink-900">“{item.texto}”</p>
                 )}
                 {item.tipo === "PROGRESSO" && item.valorMeta ? (
                   <div className="mt-2">
@@ -178,33 +188,74 @@ export default function FeedAtividade({
               ) : (
                 corpo
               )}
-              <div className="mt-2.5 flex gap-1.5">
-                {REACOES.map(({ tipo, emoji, rotulo }) => {
-                  const total = item.reacoes[tipo] ?? 0;
-                  const marcada = item.minhaReacao === tipo;
-                  return (
-                    <button
-                      key={tipo}
-                      type="button"
-                      onClick={() => aoReagir(item, tipo)}
-                      aria-label={rotulo}
-                      aria-pressed={marcada}
-                      className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-sm transition-colors ${
-                        marcada
-                          ? "border-brand-500 bg-brand-500/10 text-brand-600"
-                          : "border-ink-800/15 text-muted-600 hover:bg-ink-800/[0.04]"
-                      }`}
+              {item.tipo === "MEMBRO_ENTROU" ? (
+                <BoasVindas item={item} onAcenar={() => aoReagir(item, "ACENO")} />
+              ) : (
+                <div className="mt-2.5 flex gap-1.5">
+                  {REACOES.map(({ tipo, emoji, rotulo }) => {
+                    const total = item.reacoes[tipo] ?? 0;
+                    const marcada = item.minhaReacao === tipo;
+                    return (
+                      <button
+                        key={tipo}
+                        type="button"
+                        onClick={() => aoReagir(item, tipo)}
+                        aria-label={rotulo}
+                        aria-pressed={marcada}
+                        className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-sm transition-colors ${
+                          marcada
+                            ? "border-brand-500 bg-brand-500/10 text-brand-600"
+                            : "border-ink-800/15 text-muted-600 hover:bg-ink-800/[0.04]"
+                        }`}
+                      >
+                        <span>{emoji}</span>
+                        {total > 0 && <span className="text-xs font-semibold">{total}</span>}
+                      </button>
+                    );
+                  })}
+                  {item.tipo === "COMENTARIO" && item.leituraId && (
+                    <Link
+                      to={`/leituras/${item.leituraId}`}
+                      className="ml-auto self-center text-[13px] font-semibold text-brand-600 hover:text-brand-700"
                     >
-                      <span>{emoji}</span>
-                      {total > 0 && <span className="text-xs font-semibold">{total}</span>}
-                    </button>
-                  );
-                })}
-              </div>
+                      responder
+                    </Link>
+                  )}
+                </div>
+              )}
             </li>
           );
         })}
       </ul>
     </section>
+  );
+}
+
+/**
+ * "Entrou no clube": no lugar das reações, um 👋 de boas-vindas (reação ACENO). Tocar de novo
+ * desfaz, como nas outras reações. Quem entrou não acena para si mesmo.
+ */
+function BoasVindas({ item, onAcenar }: { item: FeedItemResponse; onAcenar: () => void }) {
+  const acenos = item.reacoes.ACENO ?? 0;
+  const acenei = item.minhaReacao === "ACENO";
+  if (item.ehVoce) {
+    return acenos > 0 ? <p className="mt-2.5 text-[13px] text-muted-600">👋 {acenos}</p> : null;
+  }
+  return (
+    <div className="mt-2.5 flex items-center gap-2">
+      <button
+        type="button"
+        onClick={onAcenar}
+        aria-pressed={acenei}
+        className={`rounded-full border px-3 py-1.5 text-[13px] font-semibold transition-colors ${
+          acenei
+            ? "border-brand-500/40 bg-brand-50 text-brand-700"
+            : "border-ink-800/15 text-ink-800 hover:bg-ink-800/[0.04]"
+        }`}
+      >
+        👋 {acenei ? "boas-vindas enviadas" : "dar boas-vindas"}
+      </button>
+      {acenos > 0 && <span className="text-[13px] text-muted-600">👋 {acenos}</span>}
+    </div>
   );
 }

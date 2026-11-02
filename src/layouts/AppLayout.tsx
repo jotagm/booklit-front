@@ -1,4 +1,8 @@
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { listarMembrosPorUsuario } from "../api/membros";
+import type { UsuarioClubeResponse } from "../api/types";
+import { corPorId } from "../utils/cores";
 import { useAuth } from "../auth/AuthContext";
 import Avatar from "../components/Avatar";
 import { IconeClubes, IconeEstante, IconeExplorar, IconeLeituras, IconePerfil, Logo } from "../components/NavIcons";
@@ -16,6 +20,17 @@ const abas = [
 export default function AppLayout() {
   const { usuario, sair } = useAuth();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const [clubes, setClubes] = useState<UsuarioClubeResponse[]>([]);
+
+  // Atalho para os clubes na sidebar (só desktop). Recarrega ao navegar para
+  // refletir clube criado/excluído sem precisar de um estado global.
+  useEffect(() => {
+    if (!usuario) return;
+    listarMembrosPorUsuario(usuario.id)
+      .then(setClubes)
+      .catch(() => setClubes([]));
+  }, [usuario, pathname === "/clubes"]);
 
   function logout() {
     sair();
@@ -51,6 +66,32 @@ export default function AppLayout() {
             </NavLink>
           ))}
         </nav>
+
+        {clubes.length > 0 && (
+          <div className="mt-8 min-h-0 overflow-y-auto">
+            <h2 className="section-label px-2">seus clubes</h2>
+            <ul className="flex flex-col gap-0.5">
+              {clubes.map((c) => (
+                <li key={c.id}>
+                  <NavLink
+                    to={`/clubes/${c.clubeId}`}
+                    className={({ isActive }) =>
+                      `flex items-center gap-3 rounded-xl px-2 py-2 text-sm transition-colors ${
+                        isActive ? "bg-ink-800/5 font-semibold text-ink-900" : "text-ink-800 hover:bg-ink-800/5"
+                      }`
+                    }
+                  >
+                    <span
+                      className="h-[22px] w-[22px] shrink-0 rounded-[7px]"
+                      style={{ backgroundColor: corPorId(c.clubeId) }}
+                    />
+                    <span className="truncate">{c.nomeClube}</span>
+                  </NavLink>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {usuario && (
           <div className="mt-auto flex items-center gap-3 border-t border-ink-800/10 pt-5">

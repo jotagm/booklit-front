@@ -48,6 +48,7 @@ export default function LeituraCreate() {
         livroGoogleId: livro.livroGoogleId,
         livroTitulo: livro.livroTitulo,
         livroCapaUrl: livro.livroCapaUrl,
+        livroAutor: livro.livroAutor ?? null,
         tipoMeta,
         valorMeta,
         dataInicio: paraLocalDateTimeIso(new Date(dataInicio)),

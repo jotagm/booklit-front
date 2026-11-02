@@ -1,5 +1,5 @@
 import { api } from "./client";
-import type { LeituraClubeResponse, VotacaoRequest, VotacaoResponse, UUID } from "./types";
+import type { LeituraClubeResponse, LembreteVotacaoResponse, VotacaoRequest, VotacaoResponse, UUID } from "./types";
 
 export async function criarVotacao(dados: VotacaoRequest): Promise<VotacaoResponse> {
   const { data } = await api.post<VotacaoResponse>("/votacoes", dados);
@@ -29,5 +29,11 @@ export async function deletarVotacao(id: UUID): Promise<void> {
 // próxima LeituraClube a partir da opção vencedora.
 export async function encerrarVotacao(id: UUID): Promise<LeituraClubeResponse> {
   const { data } = await api.post<LeituraClubeResponse>(`/votacoes/${id}/encerrar`);
+  return data;
+}
+
+// Lembra por e-mail quem ainda não votou (só o líder; uma vez a cada 24 horas).
+export async function lembrarQuemNaoVotou(id: UUID): Promise<LembreteVotacaoResponse> {
+  const { data } = await api.post<LembreteVotacaoResponse>(`/votacoes/${id}/lembrete`);
   return data;
 }

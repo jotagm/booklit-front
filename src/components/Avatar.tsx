@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { corPorId } from "../utils/cores";
 
 function iniciais(nome: string): string {
   const partes = nome.trim().split(/\s+/);
@@ -13,8 +14,6 @@ const tamanhos = {
   lg: "h-20 w-20 text-2xl",
 } as const;
 
-// Mesma paleta do app: a cor depende do id, então a pessoa tem sempre a mesma cor.
-const CORES = ["#C17A3A", "#6B8F71", "#8E6C8A", "#5B7DB1", "#B5655A", "#8A7F3E", "#4F8A8B"];
 
 export default function Avatar({
   nome,
@@ -51,7 +50,7 @@ export default function Avatar({
   return (
     <div
       className={classes}
-      style={usuarioId === undefined ? undefined : { backgroundColor: CORES[Math.abs(usuarioId) % CORES.length] }}
+      style={usuarioId === undefined ? undefined : { backgroundColor: corPorId(usuarioId) }}
       title={nome}
     >
       {iniciais(nome) || "?"}

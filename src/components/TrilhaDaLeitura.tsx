@@ -49,7 +49,7 @@ export default function TrilhaDaLeitura({
   return (
     <section className="mt-6">
       <div className="mb-2 flex items-center justify-between">
-        <h2 className="font-serif text-lg text-ink-900">
+        <h2 className="section-label mb-0">
           trilha da leitura
           {link && <span className="ml-2 text-xs font-normal text-muted-500">{ROTULO_TIPO_SPOTIFY[link.tipo]}</span>}
         </h2>

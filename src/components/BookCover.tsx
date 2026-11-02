@@ -2,6 +2,7 @@ const tamanhos = {
   sm: "h-14 w-10",
   md: "h-16 w-11",
   lg: "h-20 w-14",
+  xl: "h-28 w-20",
 } as const;
 
 // Sem capa, o mock usa um retângulo com listras diagonais claras no lugar do livro.

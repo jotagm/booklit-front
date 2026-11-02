@@ -4,23 +4,30 @@ import { Link, useParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { buscarLeituraPorId } from "../api/leituras";
 import { listarRegistrosPorLeitura, atualizarProgresso } from "../api/registros";
-import { buscarMembroPorUsuarioEClube } from "../api/membros";
+import { buscarMembroPorUsuarioEClube, listarMembrosPorClube } from "../api/membros";
 import {
   criarComentario,
   editarComentario,
   deletarComentario,
   listarComentariosPorLeitura,
 } from "../api/comentarios";
-import type { ComentarioResponse, LeituraClubeResponse, RegistroResponse } from "../api/types";
+import type { ComentarioResponse, LeituraClubeResponse, RegistroResponse, UsuarioClubeResponse } from "../api/types";
 import { extrairMensagemErro } from "../api/client";
 import { Spinner, ErrorBanner, EmptyState } from "../components/Feedback";
 import ProgressBar from "../components/ProgressBar";
 import Avatar from "../components/Avatar";
-import Button from "../components/Button";
+import BookCover from "../components/BookCover";
 import CommentThread from "../components/CommentThread";
 import TrilhaDaLeitura from "../components/TrilhaDaLeitura";
+import StepperProgresso from "../components/StepperProgresso";
+import PistaDoGrupo, { resumoDaPista } from "../components/PistaDoGrupo";
 import { formatarData } from "../utils/date";
-import { rotuloTipoMeta } from "../utils/format";
+
+function contarComentarios(arvore: ComentarioResponse[]): number {
+  return arvore.reduce((n, c) => n + 1 + contarComentarios(c.respostas ?? []), 0);
+}
+
+const primeiro = (nome: string) => nome.trim().split(/\s+/)[0];
 
 export default function LeituraDetail() {
   const { leituraId } = useParams<{ leituraId: string }>();
@@ -30,8 +37,7 @@ export default function LeituraDetail() {
   const [registros, setRegistros] = useState<RegistroResponse[]>([]);
   const [souLider, setSouLider] = useState(false);
   const [comentarios, setComentarios] = useState<ComentarioResponse[]>([]);
-  const [novoValor, setNovoValor] = useState<number>(0);
-  const [salvandoProgresso, setSalvandoProgresso] = useState(false);
+  const [membros, setMembros] = useState<UsuarioClubeResponse[]>([]);
   const [novoComentario, setNovoComentario] = useState("");
   const [enviandoComentario, setEnviandoComentario] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -42,19 +48,18 @@ export default function LeituraDetail() {
     setErro(null);
     try {
       const leituraResp = await buscarLeituraPorId(leituraId);
-      const [registrosResp, meuMembro, comentariosResp] = await Promise.all([
+      const [registrosResp, meuMembro, comentariosResp, membrosResp] = await Promise.all([
         listarRegistrosPorLeitura(leituraId),
         buscarMembroPorUsuarioEClube(usuario.id, leituraResp.clubeId),
         listarComentariosPorLeitura(leituraId),
+        listarMembrosPorClube(leituraResp.clubeId).catch(() => [] as UsuarioClubeResponse[]),
       ]);
 
       setLeitura(leituraResp);
       setRegistros(registrosResp);
       setSouLider(meuMembro?.papel === "LIDER");
       setComentarios(comentariosResp);
-
-      const meuRegistro = registrosResp.find((r) => r.usuarioId === usuario.id);
-      setNovoValor(meuRegistro?.valorAtual ?? 0);
+      setMembros(membrosResp);
     } catch (e) {
       setErro(extrairMensagemErro(e, "Não foi possível carregar a leitura."));
     } finally {
@@ -66,22 +71,19 @@ export default function LeituraDetail() {
     carregar();
   }, [carregar]);
 
-  async function salvarProgresso(e: FormEvent) {
-    e.preventDefault();
-    if (!leituraId) return;
-    setSalvandoProgresso(true);
-    try {
-      const atualizado = await atualizarProgresso(leituraId, novoValor);
-      setRegistros((prev) => {
-        const semMeu = prev.filter((r) => r.usuarioId !== atualizado.usuarioId);
-        return [...semMeu, atualizado].sort((a, b) => a.nomeUsuario.localeCompare(b.nomeUsuario));
-      });
-    } catch (e) {
-      setErro(extrairMensagemErro(e, "Não foi possível salvar seu progresso."));
-    } finally {
-      setSalvandoProgresso(false);
-    }
-  }
+  // Estável: o StepperProgresso usa o callback como dependência do debounce.
+  const salvar = useCallback(
+    async (valor: number) => {
+      if (!leituraId) return;
+      try {
+        const atualizado = await atualizarProgresso(leituraId, valor);
+        setRegistros((prev) => [...prev.filter((r) => r.usuarioId !== atualizado.usuarioId), atualizado]);
+      } catch (e) {
+        setErro(extrairMensagemErro(e, "Não foi possível salvar seu progresso."));
+      }
+    },
+    [leituraId]
+  );
 
   async function enviarComentario(e: FormEvent) {
     e.preventDefault();
@@ -121,130 +123,156 @@ export default function LeituraDetail() {
   if (erro && !leitura) return <div className="p-4"><ErrorBanner mensagem={erro} /></div>;
   if (!leitura) return null;
 
-  const meuRegistro = registros.find((r) => r.usuarioId === usuario?.id);
+  const meuId = usuario?.id ?? null;
+  const meuRegistro = registros.find((r) => r.usuarioId === meuId);
+  const minhaPosicao = meuRegistro?.valorAtual ?? 0;
+  const unidade = leitura.tipoMeta === "PAGINA" ? "pág." : "cap.";
+  const totalComentarios = contarComentarios(comentarios);
+  const comRegistro = new Set(registros.map((r) => r.usuarioId));
+  const naoComecaram = membros.filter((m) => !comRegistro.has(m.usuarioId)).map((m) => primeiro(m.nomeUsuario));
+
+  const cartaoProgresso = (
+    <section className="card flex flex-col gap-3 p-4">
+      <h2 className="section-label mb-0 hidden lg:block">seu progresso</h2>
+      <StepperProgresso valor={minhaPosicao} meta={leitura.valorMeta} unidade={unidade} onSalvar={salvar} />
+      {registros.length > 0 && (
+        <>
+          <PistaDoGrupo registros={registros} meta={leitura.valorMeta} meuUsuarioId={meuId} />
+          <p className="text-xs text-muted-600">{resumoDaPista(registros, meuId)}</p>
+        </>
+      )}
+    </section>
+  );
+
+  const trilha = <TrilhaDaLeitura leitura={leitura} souLider={souLider} onAtualizada={setLeitura} />;
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 pb-10 pt-6 lg:px-8 lg:pt-10">
-      <Link to={`/clubes/${leitura.clubeId}`} className="text-sm text-muted-600 hover:text-ink-800">
-        ← {leitura.nomeClube}
-      </Link>
+    <div className="mx-auto w-full max-w-6xl px-4 pb-28 pt-6 lg:grid lg:grid-cols-[minmax(0,1fr)_300px] lg:gap-7 lg:px-10 lg:pb-0 lg:pt-8">
+      <div className="flex flex-col lg:min-h-[calc(100vh-4rem)]">
+        <Link to={`/clubes/${leitura.clubeId}`} className="text-sm text-muted-600 hover:text-ink-800">
+          ← {leitura.nomeClube}
+        </Link>
 
-      {erro && (
-        <div className="mt-3">
-          <ErrorBanner mensagem={erro} />
-        </div>
-      )}
-
-      <div className="card mt-3 flex gap-4 p-4">
-        {leitura.livroCapaUrl ? (
-          <img src={leitura.livroCapaUrl} alt={leitura.livroTitulo} className="h-28 w-20 shrink-0 rounded object-cover" />
-        ) : (
-          <div className="flex h-28 w-20 shrink-0 items-center justify-center rounded bg-ink-800/10 text-[10px] text-muted-600">
-            capa
+        {erro && (
+          <div className="mt-3">
+            <ErrorBanner mensagem={erro} />
           </div>
         )}
-        <div className="min-w-0 flex-1">
-          <h1 className="font-serif text-xl text-ink-900">{leitura.livroTitulo}</h1>
-          <p className="mt-1 text-xs text-muted-600">
-            meta: {leitura.valorMeta} {rotuloTipoMeta(leitura.tipoMeta)}
-          </p>
-          <p className="text-xs text-muted-500">
-            {formatarData(leitura.dataInicio)} — {formatarData(leitura.dataFim)}
-          </p>
+
+        <div className="mt-3 flex items-end gap-4">
+          <BookCover
+            url={leitura.livroCapaUrl}
+            titulo={leitura.livroTitulo}
+            size="xl"
+            className="shadow-[0_6px_14px_-6px_rgba(43,33,27,.4)]"
+          />
+          <div className="min-w-0">
+            <h1 className="font-serif text-2xl leading-tight text-ink-900 lg:text-[32px]">{leitura.livroTitulo}</h1>
+            <p className="mt-1 text-[13px] text-muted-600">
+              {leitura.livroAutor && <>{leitura.livroAutor} · </>}até {formatarData(leitura.dataFim)}
+            </p>
+          </div>
         </div>
+
+        <div className="mt-4 lg:hidden">{cartaoProgresso}</div>
+
+        {/* discussão */}
+        <section className="mt-6 flex-1">
+          <h2 className="section-label">discussão · {totalComentarios}</h2>
+          {comentarios.length === 0 ? (
+            <EmptyState titulo="Nenhum comentário ainda" descricao="Seja o primeiro a comentar sobre esta leitura." />
+          ) : (
+            <div className="flex flex-col gap-4">
+              {comentarios.map((c) => (
+                <CommentThread
+                  key={c.id}
+                  comentario={c}
+                  meuUsuarioId={meuId}
+                  souLider={souLider}
+                  meuProgresso={meuRegistro ? minhaPosicao : null}
+                  emCapitulos={leitura.tipoMeta === "CAPITULO"}
+                  onResponder={responder}
+                  onEditar={editar}
+                  onExcluir={excluir}
+                />
+              ))}
+            </div>
+          )}
+        </section>
+
+        <div className="lg:hidden">{trilha}</div>
+
+        {/* composer fixo no rodapé: no mobile fica acima da bottom nav (64px); o pb-28 do
+            container impede que cubra o último comentário */}
+        {usuario && (
+          <form
+            onSubmit={enviarComentario}
+            className="fixed inset-x-0 bottom-[64px] z-30 flex items-center gap-2 border-t border-ink-800/10 bg-cream-50 px-3 py-2.5 lg:sticky lg:bottom-0 lg:mt-4 lg:bg-cream-200 lg:px-0 lg:py-3.5"
+          >
+            <Avatar nome={usuario.nome} usuarioId={usuario.id} fotoUrl={usuario.fotoUrl} size="sm" />
+            <input
+              className="field-input !rounded-full !py-2.5"
+              placeholder={`comentar na ${unidade} ${minhaPosicao}…`}
+              value={novoComentario}
+              onChange={(e) => setNovoComentario(e.target.value)}
+            />
+            <button
+              type="submit"
+              disabled={enviandoComentario || !novoComentario.trim()}
+              className="shrink-0 text-sm font-semibold text-brand-600 disabled:opacity-50 lg:btn-primary"
+            >
+              {enviandoComentario ? "…" : "enviar"}
+            </button>
+          </form>
+        )}
       </div>
 
-      {/* meu progresso */}
-      <section className="mt-6">
-        <h2 className="mb-2 font-serif text-lg text-ink-900">seu progresso</h2>
-        <form onSubmit={salvarProgresso} className="card flex items-center gap-3 p-4">
-          <input
-            type="number"
-            min={0}
-            max={leitura.valorMeta}
-            className="field-input w-24 text-center"
-            value={novoValor}
-            onChange={(e) => setNovoValor(Number(e.target.value))}
-          />
-          <span className="text-sm text-muted-600">/ {leitura.valorMeta}</span>
-          <div className="flex-1">
-            <ProgressBar atual={novoValor} meta={leitura.valorMeta} />
-          </div>
-          <Button type="submit" loading={salvandoProgresso} className="shrink-0 !px-4 !py-2.5 text-sm">
-            salvar
-          </Button>
-        </form>
-        {meuRegistro && (
-          <p className="mt-1 text-xs text-muted-500">
-            última atualização: {formatarData(meuRegistro.updatedAt)}
-          </p>
-        )}
-      </section>
+      <aside className="hidden lg:sticky lg:top-8 lg:flex lg:flex-col lg:gap-4 lg:self-start lg:pt-9">
+        {cartaoProgresso}
 
-      {/* progresso do grupo */}
-      <section className="mt-6">
-        <h2 className="mb-2 font-serif text-lg text-ink-900">progresso do grupo</h2>
-        <ul className="card divide-y divide-ink-800/10">
-          {registros
-            .slice()
-            .sort((a, b) => b.valorAtual - a.valorAtual)
-            .map((r) => (
-              <li key={r.id} className="flex items-center gap-3 px-4 py-3">
-                <Link to={`/leitores/${r.usuarioId}`} className="flex w-40 shrink-0 items-center gap-3 hover:opacity-80">
-                  <Avatar nome={r.nomeUsuario} usuarioId={r.usuarioId} fotoUrl={r.fotoUrl} size="sm" />
-                  <span className="truncate text-sm text-ink-900">{r.nomeUsuario}</span>
-                </Link>
-                <div className="flex-1">
-                  <ProgressBar atual={r.valorAtual} meta={leitura.valorMeta} tone="muted" />
-                </div>
-                <span className="w-16 shrink-0 text-right text-xs text-muted-500">
-                  {r.valorAtual}/{leitura.valorMeta}
-                </span>
+        <section className="card p-4">
+          <h2 className="section-label">o grupo</h2>
+          <ul>
+            {registros
+              .slice()
+              .sort((a, b) => b.valorAtual - a.valorAtual)
+              .map((r) => {
+                const eu = r.usuarioId === meuId;
+                const terminou = r.valorAtual >= leitura.valorMeta;
+                return (
+                  <li key={r.id}>
+                    <Link to={`/leitores/${r.usuarioId}`} className="flex items-center gap-2.5 py-1.5 hover:opacity-80">
+                      <Avatar nome={r.nomeUsuario} usuarioId={r.usuarioId} fotoUrl={r.fotoUrl} size="sm" />
+                      <span className={`min-w-0 flex-1 truncate text-sm text-ink-900 ${eu ? "font-semibold" : ""}`}>
+                        {eu ? "você" : primeiro(r.nomeUsuario)}
+                      </span>
+                      {terminou ? (
+                        <span className="text-xs font-semibold text-brand-600">terminou 🎉</span>
+                      ) : (
+                        <>
+                          <span className="w-20">
+                            <ProgressBar atual={r.valorAtual} meta={leitura.valorMeta} tone={eu ? "brand" : "muted"} />
+                          </span>
+                          <span className="w-8 text-right text-xs text-muted-500">{r.valorAtual}</span>
+                        </>
+                      )}
+                    </Link>
+                  </li>
+                );
+              })}
+            {naoComecaram.length > 0 && (
+              <li className="flex items-center gap-2.5 py-1.5 text-xs text-muted-500">
+                <span className="h-7 w-7 shrink-0 rounded-full border-2 border-dashed border-ink-800/25" />
+                {naoComecaram.length === 1
+                  ? `${naoComecaram[0]} ainda não começou`
+                  : `${naoComecaram.slice(0, -1).join(", ")} e ${naoComecaram[naoComecaram.length - 1]} ainda não começaram`}
               </li>
-            ))}
-          {registros.length === 0 && (
-            <li className="px-4 py-4 text-sm text-muted-600">ainda ninguém registrou progresso.</li>
-          )}
-        </ul>
-      </section>
+            )}
+          </ul>
+        </section>
 
-      {/* trilha sonora / audiobook no Spotify */}
-      <TrilhaDaLeitura leitura={leitura} souLider={souLider} onAtualizada={setLeitura} />
-
-      {/* discussão */}
-      <section className="mt-6">
-        <h2 className="mb-2 font-serif text-lg text-ink-900">discussão</h2>
-
-        <form onSubmit={enviarComentario} className="mb-4 flex gap-2">
-          <input
-            className="field-input"
-            placeholder="compartilhe um comentário sobre a leitura..."
-            value={novoComentario}
-            onChange={(e) => setNovoComentario(e.target.value)}
-          />
-          <Button type="submit" loading={enviandoComentario} className="shrink-0">
-            publicar
-          </Button>
-        </form>
-
-        {comentarios.length === 0 ? (
-          <EmptyState titulo="Nenhum comentário ainda" descricao="Seja o primeiro a comentar sobre esta leitura." />
-        ) : (
-          <div className="flex flex-col gap-4">
-            {comentarios.map((c) => (
-              <CommentThread
-                key={c.id}
-                comentario={c}
-                meuUsuarioId={usuario?.id ?? null}
-                souLider={souLider}
-                onResponder={responder}
-                onEditar={editar}
-                onExcluir={excluir}
-              />
-            ))}
-          </div>
-        )}
-      </section>
+        {trilha}
+      </aside>
     </div>
   );
 }

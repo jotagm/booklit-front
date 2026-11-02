@@ -17,6 +17,7 @@ import Livros from "./pages/Livros";
 import VotacaoCreate from "./pages/VotacaoCreate";
 import VotacaoDetail from "./pages/VotacaoDetail";
 import Profile from "./pages/Profile";
+import Configuracoes from "./pages/Configuracoes";
 import ProfileEdit from "./pages/ProfileEdit";
 import NotFound from "./pages/NotFound";
 import Estante from "./pages/Estante";
@@ -75,6 +76,7 @@ export default function App() {
             <Route path="/leituras/:leituraId" element={<LeituraDetail />} />
             <Route path="/votacoes/:votacaoId" element={<VotacaoDetail />} />
             <Route path="/perfil" element={<Profile />} />
+            <Route path="/perfil/configuracoes" element={<Configuracoes />} />
             <Route path="/leitores/:id" element={<LeitorPerfil />} />
           </Route>
         </Route>

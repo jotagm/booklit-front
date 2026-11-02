@@ -3,10 +3,8 @@ import type { ClubeDoPainel } from "../hooks/usePainel";
 import RoleBadge from "./RoleBadge";
 import ProgressBar from "./ProgressBar";
 import BookCover from "./BookCover";
-import { diasAte, nomeDoDiaSemana, rotuloPrazo, tempoRelativo } from "../utils/date";
-
-// Quantos dias sem atualizar o progresso já contam como "atualize seu progresso".
-const DIAS_SEM_REGISTRO = 5;
+import { corPorId } from "../utils/cores";
+import { DIAS_SEM_REGISTRO, diasAte, nomeDoDiaSemana, rotuloPrazo, tempoRelativo } from "../utils/date";
 
 function statusDoClube(clube: ClubeDoPainel) {
   if (clube.votacaoAberta) {
@@ -32,7 +30,6 @@ function statusDoClube(clube: ClubeDoPainel) {
 
 export default function ClubCard({ clube }: { clube: ClubeDoPainel }) {
   const { membro, leituraAtiva, meuRegistro, votacaoAberta, opcoesDaVotacao } = clube;
-  const isLider = membro.papel === "LIDER";
   const status = statusDoClube(clube);
 
   return (
@@ -41,9 +38,8 @@ export default function ClubCard({ clube }: { clube: ClubeDoPainel }) {
       className="card block overflow-hidden transition-shadow hover:shadow-md"
     >
       <div
-        className={`flex items-center justify-between px-5 py-3 ${
-          isLider ? "bg-brand-500" : "bg-muted-700"
-        }`}
+        className="flex items-center justify-between px-5 py-3"
+        style={{ backgroundColor: corPorId(membro.clubeId) }}
       >
         <span className="font-serif text-lg text-cream-50">{membro.nomeClube}</span>
         <RoleBadge papel={membro.papel} />

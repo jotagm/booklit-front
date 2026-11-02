@@ -9,6 +9,8 @@ import { extrairMensagemErro } from "../api/client";
 import { Spinner, ErrorBanner, EmptyState } from "../components/Feedback";
 import ProgressBar from "../components/ProgressBar";
 import BookCover from "../components/BookCover";
+import MiniCalendar from "../components/MiniCalendar";
+import { usePainel } from "../hooks/usePainel";
 import { formatarDiaMes } from "../utils/date";
 import { rotuloTipoMeta } from "../utils/format";
 
@@ -21,6 +23,8 @@ export default function LeiturasAtivas() {
   const { usuario } = useAuth();
   const [itens, setItens] = useState<LeituraDoClube[] | null>(null);
   const [erro, setErro] = useState<string | null>(null);
+  // O calendário saiu da home: os marcos são os mesmos prazos do painel.
+  const { painel } = usePainel();
 
   const carregar = useCallback(async () => {
     if (!usuario) return;
@@ -48,6 +52,12 @@ export default function LeiturasAtivas() {
   return (
     <div className="mx-auto w-full max-w-6xl px-4 pb-10 pt-6 lg:px-10 lg:pt-10">
       <h1 className="mb-6 font-serif text-[28px] font-bold text-ink-900 lg:text-4xl">leituras ativas</h1>
+
+      {painel && painel.prazos.length > 0 && (
+        <div className="mb-6 lg:max-w-sm">
+          <MiniCalendar marcos={painel.prazos} />
+        </div>
+      )}
 
       {erro && <ErrorBanner mensagem={erro} />}
       {!erro && itens === null && <Spinner label="carregando..." />}

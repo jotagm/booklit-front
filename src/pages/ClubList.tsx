@@ -1,52 +1,23 @@
+import { useCallback, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { usePainel } from "../hooks/usePainel";
-import type { Evento, Prazo, TipoEvento } from "../hooks/usePainel";
+import type { Painel, Prazo } from "../hooks/usePainel";
+import type { FeedItemResponse, UsuarioId } from "../api/types";
+import { atualizarProgresso } from "../api/registros";
 import ClubCard from "../components/ClubCard";
 import ConvitesPendentes from "../components/ConvitesPendentes";
 import BookCover from "../components/BookCover";
 import ProgressBar from "../components/ProgressBar";
-import MiniCalendar from "../components/MiniCalendar";
 import Avatar from "../components/Avatar";
 import FeedAtividade from "../components/FeedAtividade";
+import FacePile from "../components/FacePile";
+import Modal from "../components/Modal";
+import StepperProgresso from "../components/StepperProgresso";
+import { LendoAgoraFaixa, LendoAgoraLista, quemEstaLendo } from "../components/LendoAgora";
 import Button from "../components/Button";
 import { Spinner, ErrorBanner, EmptyState } from "../components/Feedback";
-import { rotuloPrazo, tempoRelativo } from "../utils/date";
-
-const EMOJI_POR_EVENTO: Record<TipoEvento, string> = {
-  terminou: "🎉",
-  progresso: "📖",
-  comentou: "💬",
-  votacao: "🗳",
-  sugestao: "📚",
-  entrou: "👋",
-};
-
-// As três cores de cartão que o mock alterna no carrossel de novidades.
-const CORES_NOVIDADE = ["bg-brand-500", "bg-muted-700", "bg-pedra-500"];
-
-// Duas sugestões do mesmo membro na mesma votação viram uma linha só no feed.
-function semRepetidos(eventos: Evento[]): Evento[] {
-  const vistos = new Set<string>();
-  return eventos.filter((e) => {
-    if (vistos.has(e.titulo)) return false;
-    vistos.add(e.titulo);
-    return true;
-  });
-}
-
-function destaques(eventos: Evento[], limite = 6): Evento[] {
-  const vistos = new Set<string>();
-  const escolhidos: Evento[] = [];
-  for (const e of eventos) {
-    const chave = `${e.nomeClube}|${e.tipo}`;
-    if (vistos.has(chave)) continue;
-    vistos.add(chave);
-    escolhidos.push(e);
-    if (escolhidos.length === limite) break;
-  }
-  return escolhidos;
-}
+import { diasAte, nomeDoDiaSemana, rotuloPrazo } from "../utils/date";
 
 function saudacao(agora = new Date()): string {
   const hora = agora.getHours();
@@ -55,26 +26,41 @@ function saudacao(agora = new Date()): string {
   return "boa noite";
 }
 
+/** "Ana, Bruno e Diego" */
+function juntarNomes(nomes: string[]): string {
+  return nomes.join(", ").replace(/, ([^,]*)$/, " e $1");
+}
+
 export default function ClubList() {
   const { usuario } = useAuth();
-  const { painel, erro } = usePainel();
+  const { painel, erro, recarregar } = usePainel();
+  const [feed, setFeed] = useState<FeedItemResponse[]>([]);
 
   const primeiroNome = usuario ? usuario.nome.trim().split(/\s+/)[0] : "";
-  // O carrossel do topo mostra destaques variados (um por clube + tipo de evento);
-  // a lista lateral mostra a ordem cronológica pura.
-  const novidades = destaques(semRepetidos(painel?.eventos ?? []));
+  const lendo = quemEstaLendo(feed);
+  const leramHoje = lendo.filter((i) => diasAte(i.quando) === 0).length;
+  const clubeComVotacao = painel?.clubes.find((c) => c.votacaoAberta);
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 pb-10 pt-6 lg:px-10 lg:pt-10">
-      <header className="mb-6 flex items-start justify-between gap-4">
+      <header className="mb-5 flex items-start justify-between gap-4">
         <div>
           <h1 className="font-serif text-[28px] font-bold leading-tight text-ink-900 lg:text-4xl">
             {saudacao()}, {primeiroNome}
           </h1>
-          {painel && painel.semanasDeSequencia > 0 && (
+          {painel && (painel.semanasDeSequencia > 0 || leramHoje > 0) && (
             <p className="mt-1 text-sm text-muted-600">
-              🔥 {painel.semanasDeSequencia}{" "}
-              {painel.semanasDeSequencia === 1 ? "semana" : "semanas"} de sequência de leitura
+              {painel.semanasDeSequencia > 0 && (
+                <>
+                  🔥 {painel.semanasDeSequencia} {painel.semanasDeSequencia === 1 ? "semana" : "semanas"}
+                </>
+              )}
+              {painel.semanasDeSequencia > 0 && leramHoje > 0 && " · "}
+              {leramHoje > 0 && (
+                <>
+                  {leramHoje} {leramHoje === 1 ? "amigo leu" : "amigos leram"} hoje
+                </>
+              )}
             </p>
           )}
         </div>
@@ -107,71 +93,47 @@ export default function ClubList() {
       )}
 
       {painel !== null && painel.clubes.length > 0 && (
-        // No mobile o grid vira uma coluna só e a ordem segue o mock (novidades,
-        // continuar leitura, calendário, prazos, clubes, atividade) — daí o
-        // `contents` nos dois grupos e as classes de `order`.
-        <div className="flex flex-col gap-7 lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start lg:gap-8">
-          <div className="contents lg:flex lg:flex-col lg:gap-7">
-            {novidades.length > 0 && (
-              <section className="order-1">
-                <h2 className="section-label">novidades dos seus clubes</h2>
-                <ul className="sem-scrollbar -mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-1 lg:mx-0 lg:px-0">
-                  {novidades.map((evento, i) => (
-                    <li key={evento.id} className="w-64 shrink-0 snap-start">
-                      <CartaoNovidade evento={evento} cor={CORES_NOVIDADE[i % CORES_NOVIDADE.length]} />
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            )}
+        // No mobile vira uma coluna só e a ordem segue o mock (lendo agora, continuar
+        // leitura, banner de voto, feed, clubes, prazos) — daí o `contents` nos dois
+        // grupos e as classes de `order`.
+        <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_280px] lg:items-start lg:gap-8">
+          <div className="contents lg:flex lg:flex-col lg:gap-5">
+            <div className="order-1 lg:hidden">
+              <LendoAgoraFaixa itens={lendo} />
+            </div>
 
             {painel.continuarLeitura && (
               <section className="order-2">
-                <Link
-                  to={`/leituras/${painel.continuarLeitura.leitura.id}`}
-                  className="card flex items-center gap-4 p-5 transition-shadow hover:shadow-md"
-                >
-                  <BookCover
-                    url={painel.continuarLeitura.leitura.livroCapaUrl}
-                    titulo={painel.continuarLeitura.leitura.livroTitulo}
-                    size="lg"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-brand-600">
-                      continuar leitura
-                      {/* no mobile o nome do clube é omitido para o rótulo caber numa linha */}
-                      <span className="hidden lg:inline"> · {painel.continuarLeitura.leitura.nomeClube}</span>
-                    </p>
-                    <p className="truncate font-serif text-xl text-ink-900">
-                      {painel.continuarLeitura.leitura.livroTitulo}
-                    </p>
-                    <div className="mt-2 flex items-center gap-3">
-                      <div className="min-w-0 flex-1">
-                        <ProgressBar
-                          atual={painel.continuarLeitura.registro?.valorAtual ?? 0}
-                          meta={painel.continuarLeitura.leitura.valorMeta}
-                        />
-                      </div>
-                      <span className="shrink-0 text-sm text-muted-500">
-                        {painel.continuarLeitura.registro?.valorAtual ?? 0} /{" "}
-                        {painel.continuarLeitura.leitura.valorMeta}
-                      </span>
-                    </div>
-                  </div>
-                  <span className="hidden shrink-0 text-sm font-semibold text-brand-600 lg:block">
-                    continuar →
-                  </span>
-                </Link>
+                <ContinuarLeitura
+                  cl={painel.continuarLeitura}
+                  meuId={usuario?.id ?? null}
+                  aoSalvar={recarregar}
+                />
               </section>
             )}
+
+            {clubeComVotacao?.votacaoAberta && (
+              <Link
+                to={`/votacoes/${clubeComVotacao.votacaoAberta.id}`}
+                className="order-3 flex items-center gap-2 rounded-[14px] bg-brand-50 px-3.5 py-2.5 text-[13px] text-brand-700 lg:hidden"
+              >
+                <span>🗳</span>
+                <span className="min-w-0 flex-1 truncate">
+                  <strong>vote até {nomeDoDiaSemana(clubeComVotacao.votacaoAberta.dataEncerramento)}</strong> ·{" "}
+                  {clubeComVotacao.membro.nomeClube}
+                </span>
+                <span className="shrink-0 font-semibold">votar →</span>
+              </Link>
+            )}
+
+            <div className="order-4">
+              <FeedAtividade limite={20} titulo="nos seus clubes" onItens={setFeed} />
+            </div>
 
             <section className="order-5">
               <div className="mb-2 flex items-center justify-between">
                 <h2 className="section-label mb-0">seus clubes</h2>
-                <Link
-                  to="/clubes/novo"
-                  className="text-sm font-semibold text-brand-600 lg:hidden"
-                >
+                <Link to="/clubes/novo" className="text-sm font-semibold text-brand-600 lg:hidden">
                   + criar clube
                 </Link>
               </div>
@@ -185,13 +147,13 @@ export default function ClubList() {
             </section>
           </div>
 
-          <div className="contents lg:flex lg:flex-col lg:gap-7">
-            <div className="order-3">
-              <MiniCalendar marcos={painel.prazos} />
+          <div className="contents lg:sticky lg:top-8 lg:flex lg:flex-col lg:gap-6">
+            <div className="hidden lg:block">
+              <LendoAgoraLista itens={lendo} />
             </div>
 
             {painel.prazos.length > 0 && (
-              <section className="order-4">
+              <section className="order-6">
                 <h2 className="section-label">próximos prazos</h2>
                 <ul className="card divide-y divide-ink-800/10">
                   {painel.prazos.map((prazo) => (
@@ -202,10 +164,6 @@ export default function ClubList() {
                 </ul>
               </section>
             )}
-
-            <div className="order-6">
-              <FeedAtividade limite={20} />
-            </div>
           </div>
         </div>
       )}
@@ -213,16 +171,78 @@ export default function ClubList() {
   );
 }
 
-function CartaoNovidade({ evento, cor }: { evento: Evento; cor: string }) {
+function ContinuarLeitura({
+  cl,
+  meuId,
+  aoSalvar,
+}: {
+  cl: NonNullable<Painel["continuarLeitura"]>;
+  meuId: UsuarioId | null;
+  aoSalvar: () => Promise<void>;
+}) {
+  const [registrando, setRegistrando] = useState(false);
+  const outros = cl.registrosDoGrupo.filter((r) => r.usuarioId !== meuId);
+  const nomes = outros.slice(0, 3).map((r) => r.nomeUsuario.trim().split(/\s+/)[0]);
+  const atual = cl.registro?.valorAtual ?? 0;
+  const leituraId = cl.leitura.id;
+
+  // Estável: o stepper usa o callback como dependência do debounce.
+  const salvar = useCallback(
+    async (valor: number) => {
+      await atualizarProgresso(leituraId, valor);
+      await aoSalvar();
+    },
+    [leituraId, aoSalvar]
+  );
+
   return (
-    <Link
-      to={evento.para}
-      className={`flex h-full flex-col justify-between rounded-xl2 p-4 text-cream-50 transition-opacity hover:opacity-90 ${cor}`}
-    >
-      <span className="text-xl leading-none">{EMOJI_POR_EVENTO[evento.tipo]}</span>
-      <span className="mt-3 text-sm font-semibold leading-snug">{evento.titulo}</span>
-      <span className="mt-2 text-xs text-cream-50/75">{evento.nomeClube} · ver mais →</span>
-    </Link>
+    <div className="card flex flex-col gap-3 p-4 lg:p-5">
+      <Link to={`/leituras/${cl.leitura.id}`} className="flex items-center gap-4">
+        <BookCover url={cl.leitura.livroCapaUrl} titulo={cl.leitura.livroTitulo} size="md" />
+        <div className="min-w-0 flex-1">
+          <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-brand-600">
+            continuar leitura
+            {/* no mobile o nome do clube é omitido para o rótulo caber numa linha */}
+            <span className="hidden lg:inline"> · {cl.leitura.nomeClube}</span>
+          </p>
+          <p className="truncate font-serif text-xl text-ink-900">{cl.leitura.livroTitulo}</p>
+          {outros.length > 0 && (
+            <div className="mt-1.5 flex items-center gap-1.5">
+              <FacePile
+                pessoas={outros.map((r) => ({ usuarioId: r.usuarioId, nome: r.nomeUsuario, fotoUrl: r.fotoUrl }))}
+                max={3}
+                tamanho={20}
+              />
+              <span className="text-xs text-muted-600">
+                {juntarNomes(nomes)}
+                {outros.length > 3 ? ` e +${outros.length - 3}` : ""} {outros.length === 1 ? "lê" : "leem"} com
+                você
+              </span>
+            </div>
+          )}
+        </div>
+      </Link>
+      <div className="flex items-center gap-2.5">
+        <div className="min-w-0 flex-1">
+          <ProgressBar atual={atual} meta={cl.leitura.valorMeta} />
+        </div>
+        <span className="shrink-0 text-[13px] text-muted-500">
+          {atual} / {cl.leitura.valorMeta}
+        </span>
+        <button onClick={() => setRegistrando(true)} className="btn-primary shrink-0 !px-3 !py-1.5 text-[13px]">
+          + registrar
+        </button>
+      </div>
+
+      <Modal aberto={registrando} onFechar={() => setRegistrando(false)} titulo={cl.leitura.livroTitulo}>
+        <StepperProgresso
+          valor={atual}
+          meta={cl.leitura.valorMeta}
+          unidade={cl.leitura.tipoMeta === "PAGINA" ? "pág." : "cap."}
+          onSalvar={salvar}
+        />
+      </Modal>
+    </div>
   );
 }
 

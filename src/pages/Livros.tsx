@@ -6,6 +6,7 @@ import { CampoDeBuscaLivros, CapaDoLivro, SemResultados, anoDe, fichaDoLivro } f
 import Modal from "../components/Modal";
 import { Spinner, ErrorBanner } from "../components/Feedback";
 import { EscolhaDeStatus } from "../components/estante/AdicionarNaEstante";
+import { plural } from "../utils/cores";
 
 // Tela de explorar o catálogo fora dos fluxos de criar leitura e sugerir livro — que até
 // aqui eram os dois únicos lugares do app com busca de livros.
@@ -45,7 +46,7 @@ export default function Livros() {
           <p className="mb-3 mt-6 text-xs text-muted-500">
             {busca.total > busca.resultados.length
               ? `${busca.resultados.length} de ${busca.total} resultados`
-              : `${busca.resultados.length} resultado(s)`}
+              : plural(busca.resultados.length, "resultado", "resultados")}
           </p>
 
           <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">

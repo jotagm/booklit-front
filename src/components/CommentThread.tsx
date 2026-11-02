@@ -10,6 +10,10 @@ interface Props {
   meuUsuarioId: UsuarioId | null;
   souLider: boolean;
   ehResposta?: boolean;
+  /** Onde eu estou na leitura; comentários escritos mais à frente chegam borrados. */
+  meuProgresso?: number | null;
+  /** Unidade da meta, para o chip ("pág. 25") e o aviso ("20 páginas à frente"). */
+  emCapitulos?: boolean;
   onResponder: (paiId: string, conteudo: string) => Promise<void>;
   onEditar: (id: string, conteudo: string) => Promise<void>;
   onExcluir: (id: string) => Promise<void>;
@@ -20,6 +24,8 @@ export default function CommentThread({
   meuUsuarioId,
   souLider,
   ehResposta = false,
+  meuProgresso = null,
+  emCapitulos = false,
   onResponder,
   onEditar,
   onExcluir,
@@ -29,9 +35,15 @@ export default function CommentThread({
   const [textoResposta, setTextoResposta] = useState("");
   const [textoEdicao, setTextoEdicao] = useState(comentario.conteudo);
   const [enviando, setEnviando] = useState(false);
+  const [revelado, setRevelado] = useState(false);
 
   const souAutor = comentario.usuarioId === meuUsuarioId;
   const possoExcluir = souAutor || souLider;
+  const pagina = comentario.removido ? null : comentario.paginaAutor ?? null;
+  // Sem página (comentário antigo) ou sem saber onde eu estou, nada é escondido.
+  const aFrente = pagina !== null && meuProgresso !== null && !souAutor ? pagina - meuProgresso : 0;
+  const escondido = aFrente > 0 && !revelado;
+  const rotuloUnidade = emCapitulos ? "cap." : "pág.";
 
   async function enviarResposta(e: FormEvent) {
     e.preventDefault();
@@ -66,7 +78,12 @@ export default function CommentThread({
           <div className="rounded-xl bg-ink-800/[0.04] px-3 py-2">
             <div className="flex items-baseline justify-between gap-2">
               <span className="text-sm font-semibold text-ink-900">{comentario.usuarioNome}</span>
-              <span className="shrink-0 text-[11px] text-muted-500">
+              <span className="flex shrink-0 items-center gap-1.5 text-[11px] text-muted-500">
+                {pagina !== null && (
+                  <span className="rounded-full bg-brand-50 px-2 text-[11px] font-semibold text-brand-600">
+                    {rotuloUnidade} {pagina}
+                  </span>
+                )}
                 {formatarDataHora(comentario.createdAt)}
               </span>
             </div>
@@ -93,6 +110,22 @@ export default function CommentThread({
                   </Button>
                 </div>
               </form>
+            ) : escondido ? (
+              // Spoiler: o autor estava mais à frente. O texto fica borrado (e fora da seleção
+              // e do leitor de tela) até a pessoa pedir para ver.
+              <div className="relative mt-0.5">
+                <p aria-hidden="true" className="select-none text-sm text-ink-800 blur-[5px]">
+                  {comentario.conteudo}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setRevelado(true)}
+                  className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-full bg-ink-900 px-3 py-1 text-xs font-semibold text-cream-50 hover:bg-ink-800"
+                >
+                  {aFrente} {emCapitulos ? (aFrente === 1 ? "capítulo" : "capítulos") : aFrente === 1 ? "página" : "páginas"} à
+                  frente de você · mostrar
+                </button>
+              </div>
             ) : (
               <p className={`mt-0.5 text-sm ${comentario.removido ? "italic text-muted-500" : "text-ink-800"}`}>
                 {comentario.conteudo}
@@ -100,7 +133,7 @@ export default function CommentThread({
             )}
           </div>
 
-          {!comentario.removido && !editando && (
+          {!comentario.removido && !editando && !escondido && (
             <div className="mt-1 flex gap-3 pl-3 text-xs font-semibold text-muted-500">
               {!ehResposta && (
                 <button onClick={() => setRespondendo((v) => !v)} className="hover:text-brand-600">
@@ -144,6 +177,8 @@ export default function CommentThread({
                   meuUsuarioId={meuUsuarioId}
                   souLider={souLider}
                   ehResposta
+                  meuProgresso={meuProgresso}
+                  emCapitulos={emCapitulos}
                   onResponder={onResponder}
                   onEditar={onEditar}
                   onExcluir={onExcluir}
