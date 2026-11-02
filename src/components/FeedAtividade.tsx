@@ -138,7 +138,7 @@ export default function FeedAtividade({
           const corpo = (
             <div className="flex gap-3">
               {item.usuarioId && item.usuarioNome ? (
-                <Avatar nome={item.usuarioNome} usuarioId={item.usuarioId} size="md" />
+                <Avatar nome={item.usuarioNome} usuarioId={item.usuarioId} fotoUrl={item.usuarioFotoUrl} size="md" />
               ) : (
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-50 text-base">
                   {item.tipo.startsWith("VOTACAO") ? "🗳" : "📚"}

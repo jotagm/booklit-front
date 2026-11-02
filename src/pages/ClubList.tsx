@@ -84,7 +84,7 @@ export default function ClubList() {
         </Link>
         {usuario && (
           <Link to="/perfil" className="lg:hidden" aria-label="perfil">
-            <Avatar nome={usuario.nome} usuarioId={usuario.id} size="md" />
+            <Avatar nome={usuario.nome} usuarioId={usuario.id} fotoUrl={usuario.fotoUrl} size="md" />
           </Link>
         )}
       </header>

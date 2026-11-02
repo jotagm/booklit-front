@@ -215,7 +215,7 @@ export default function ClubDetail() {
             {membros.map((m) => (
               <li key={m.id} className="flex items-center gap-3 px-4 py-3">
                 <Link to={`/leitores/${m.usuarioId}`} className="flex flex-1 items-center gap-3 hover:opacity-80">
-                  <Avatar nome={m.nomeUsuario} usuarioId={m.usuarioId} size="sm" />
+                  <Avatar nome={m.nomeUsuario} usuarioId={m.usuarioId} fotoUrl={m.fotoUrl} size="sm" />
                   <span className="text-sm text-ink-900">{m.nomeUsuario}</span>
                 </Link>
                 <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-500">

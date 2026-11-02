@@ -150,6 +150,7 @@ export interface UsuarioClubeResponse {
   id: UUID;
   usuarioId: UsuarioId;
   nomeUsuario: string;
+  fotoUrl?: string | null;
   clubeId: UUID;
   nomeClube: string;
   papel: ClubePapel;
@@ -210,6 +211,7 @@ export interface RegistroResponse {
   livroTitulo: string;
   usuarioId: UsuarioId;
   nomeUsuario: string;
+  fotoUrl?: string | null;
   valorAtual: number;
   updatedAt: ISODateTime;
 }
@@ -276,6 +278,7 @@ export interface ComentarioResponse {
   leituraClubeId: UUID;
   usuarioId: UsuarioId;
   usuarioNome: string;
+  usuarioFotoUrl?: string | null;
   conteudo: string;
   removido: boolean;
   createdAt: ISODateTime;
@@ -389,6 +392,7 @@ export interface FeedItemResponse {
   clubeNome: string;
   usuarioId?: UsuarioId | null;
   usuarioNome?: string | null;
+  usuarioFotoUrl?: string | null;
   ehVoce: boolean;
   quando: ISODateTime;
   livroTitulo?: string | null;

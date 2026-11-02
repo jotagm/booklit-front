@@ -191,7 +191,7 @@ export default function LeituraDetail() {
             .map((r) => (
               <li key={r.id} className="flex items-center gap-3 px-4 py-3">
                 <Link to={`/leitores/${r.usuarioId}`} className="flex w-40 shrink-0 items-center gap-3 hover:opacity-80">
-                  <Avatar nome={r.nomeUsuario} usuarioId={r.usuarioId} size="sm" />
+                  <Avatar nome={r.nomeUsuario} usuarioId={r.usuarioId} fotoUrl={r.fotoUrl} size="sm" />
                   <span className="truncate text-sm text-ink-900">{r.nomeUsuario}</span>
                 </Link>
                 <div className="flex-1">

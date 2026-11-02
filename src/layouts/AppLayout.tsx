@@ -54,7 +54,7 @@ export default function AppLayout() {
 
         {usuario && (
           <div className="mt-auto flex items-center gap-3 border-t border-ink-800/10 pt-5">
-            <Avatar nome={usuario.nome} usuarioId={usuario.id} size="md" />
+            <Avatar nome={usuario.nome} usuarioId={usuario.id} fotoUrl={usuario.fotoUrl} size="md" />
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-ink-900">{usuario.nome}</p>
               <button
