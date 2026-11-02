@@ -7,6 +7,7 @@ import Button from "../components/Button";
 import { ErrorBanner } from "../components/Feedback";
 import { useAuth } from "../auth/AuthContext";
 import { extrairMensagemErro } from "../api/client";
+import { segundosParaReenviar } from "../api/otp";
 import AuthTabs from "../components/AuthTabs";
 import EtapaDoCodigo from "../components/EtapaDoCodigo";
 import type { DesafioOtpResponse } from "../api/types";
@@ -37,7 +38,14 @@ export default function Login() {
         irParaDestino();
       }
     } catch (err) {
-      setErro(extrairMensagemErro(err, "E-mail ou senha inválidos."));
+      // 429: senha errada demais para este e-mail ou IP; o Retry-After diz quanto falta.
+      const espera = segundosParaReenviar(err);
+      if (espera !== null) {
+        const minutos = Math.max(1, Math.ceil(espera / 60));
+        setErro(`Muitas tentativas de login. Tente de novo em ${minutos} min.`);
+      } else {
+        setErro(extrairMensagemErro(err, "E-mail ou senha inválidos."));
+      }
     } finally {
       setEnviando(false);
     }
