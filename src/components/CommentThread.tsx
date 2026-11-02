@@ -108,7 +108,13 @@ export default function CommentThread({
   return (
     <div className={ehResposta ? "ml-9" : ""}>
       <div className="flex gap-3">
-        <Avatar nome={comentario.usuarioNome} usuarioId={comentario.usuarioId} fotoUrl={comentario.usuarioFotoUrl} size="sm" />
+        <Avatar
+          nome={comentario.usuarioNome}
+          usuarioId={comentario.usuarioId}
+          fotoUrl={comentario.usuarioFotoUrl}
+          size="sm"
+          className={ehResposta ? "" : "lg:!h-9 lg:!w-9 lg:!text-[13px]"}
+        />
         <div className="min-w-0 flex-1">
           {/* No desktop o comentário fica num cartão claro e a resposta num balão mais escuro (mock 2d). */}
           <div
@@ -195,7 +201,7 @@ export default function CommentThread({
                   aria-label="curtir"
                   className={`flex items-center gap-1 ${curti ? "text-brand-600" : "hover:text-brand-600"}`}
                 >
-                  <span className={curti ? "" : "opacity-60 grayscale"}>❤️</span>
+                  <span className={curti || curtidas > 0 ? "" : "opacity-60 grayscale"}>❤️</span>
                   {curtidas > 0 && <span>{curtidas}</span>}
                 </button>
               )}

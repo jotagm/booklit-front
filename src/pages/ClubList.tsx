@@ -17,7 +17,7 @@ import ComposerDaHome from "../components/ComposerDaHome";
 import FacePile from "../components/FacePile";
 import Modal from "../components/Modal";
 import StepperProgresso from "../components/StepperProgresso";
-import { LendoAgoraFaixa, LendoAgoraLista, quemEstaLendo } from "../components/LendoAgora";
+import { LendoAgoraFaixa, LendoAgoraLista, lendoAgoraDoPainel, quemEstaLendo } from "../components/LendoAgora";
 import Button from "../components/Button";
 import { Spinner, ErrorBanner, EmptyState } from "../components/Feedback";
 import { diasAte, formatarDiaMes, nomeDoDiaSemana } from "../utils/date";
@@ -43,7 +43,8 @@ export default function ClubList() {
   const [versaoDoFeed, setVersaoDoFeed] = useState(0);
 
   const primeiroNome = usuario ? usuario.nome.trim().split(/\s+/)[0] : "";
-  const lendo = quemEstaLendo(feed);
+  const lendo = painel ? lendoAgoraDoPainel(painel.clubes, feed, usuario?.id ?? null) : quemEstaLendo(feed);
+  const temLeituraAtiva = !!painel?.clubes.some((c) => c.leituraAtiva);
   const leramHoje = lendo.filter((i) => diasAte(i.quando) === 0).length;
   const clubeComVotacao = painel?.clubes.find((c) => c.votacaoAberta);
 
@@ -147,7 +148,8 @@ export default function ClubList() {
             <div className="order-4">
               <FeedAtividade
                 key={versaoDoFeed}
-                limite={20}
+                limite={40}
+                ocultarProgresso
                 titulo="nos seus clubes"
                 classeDoTitulo="lg:hidden"
                 meuUsuarioId={usuario?.id ?? null}
@@ -155,7 +157,8 @@ export default function ClubList() {
               />
             </div>
 
-            <section className="order-5">
+            {/* No desktop os clubes já estão na sidebar (mock 2b não repete a lista). */}
+            <section className="order-5 lg:hidden">
               <div className="mb-2 flex items-center justify-between">
                 <h2 className="section-label mb-0">seus clubes</h2>
                 <Link to="/clubes/novo" className="text-sm font-semibold text-brand-600 lg:hidden">
@@ -174,7 +177,10 @@ export default function ClubList() {
 
           <div className="contents lg:sticky lg:top-8 lg:flex lg:flex-col lg:gap-6">
             <div className="hidden lg:block">
-              <LendoAgoraLista itens={lendo} />
+              <LendoAgoraLista
+                itens={lendo}
+                vazio={temLeituraAtiva ? "ninguém dos seus clubes registrou progresso ainda" : undefined}
+              />
             </div>
 
             {painel.prazos.length > 0 && (
@@ -226,55 +232,87 @@ function ContinuarLeitura({
     [leituraId, aoSalvar]
   );
 
+  const rostos =
+    outros.length > 0 ? (
+      <div className="flex items-center gap-1.5">
+        <FacePile
+          pessoas={outros.map((r) => ({ usuarioId: r.usuarioId, nome: r.nomeUsuario, fotoUrl: r.fotoUrl }))}
+          max={3}
+          tamanho={20}
+        />
+        <span className="text-xs text-muted-600">
+          {juntarNomes(nomes)}
+          {outros.length > 3 ? ` e +${outros.length - 3}` : ""} {outros.length === 1 ? "lê" : "leem"} com você
+        </span>
+      </div>
+    ) : null;
+
+  const modal = (
+    <Modal aberto={registrando} onFechar={() => setRegistrando(false)} titulo={cl.leitura.livroTitulo}>
+      <StepperProgresso
+        valor={atual}
+        meta={cl.leitura.valorMeta}
+        unidade={cl.leitura.tipoMeta === "PAGINA" ? "pág." : "cap."}
+        onSalvar={salvar}
+      />
+      {erro && <p className="mt-3 text-center text-xs text-red-600">{erro}</p>}
+    </Modal>
+  );
+
+  const botao = (
+    <button onClick={() => setRegistrando(true)} className="btn-primary shrink-0 !px-3 !py-1.5 text-[13px] lg:!px-4 lg:!py-2.5 lg:text-sm">
+      + registrar
+    </button>
+  );
+
   return (
-    <div className="card flex flex-col gap-3 p-4 lg:p-5">
-      <Link to={`/leituras/${cl.leitura.id}`} className="flex items-center gap-4">
-        <BookCover url={cl.leitura.livroCapaUrl} titulo={cl.leitura.livroTitulo} size="md" />
-        <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-brand-600">
-            continuar leitura
-            {/* no mobile o nome do clube é omitido para o rótulo caber numa linha */}
-            <span className="hidden lg:inline"> · {cl.leitura.nomeClube}</span>
-          </p>
-          <p className="truncate font-serif text-xl text-ink-900">{cl.leitura.livroTitulo}</p>
-          {outros.length > 0 && (
-            <div className="mt-1.5 flex items-center gap-1.5">
-              <FacePile
-                pessoas={outros.map((r) => ({ usuarioId: r.usuarioId, nome: r.nomeUsuario, fotoUrl: r.fotoUrl }))}
-                max={3}
-                tamanho={20}
-              />
-              <span className="text-xs text-muted-600">
-                {juntarNomes(nomes)}
-                {outros.length > 3 ? ` e +${outros.length - 3}` : ""} {outros.length === 1 ? "lê" : "leem"} com
-                você
+    <>
+      {/* Desktop (mock 2b): capa | rótulo, título, barra com a contagem, rostos | botão. */}
+      <div className="card hidden items-center gap-5 p-5 lg:flex">
+        <Link to={`/leituras/${cl.leitura.id}`} className="flex min-w-0 flex-1 items-center gap-4">
+          <BookCover url={cl.leitura.livroCapaUrl} titulo={cl.leitura.livroTitulo} size="md" />
+          <div className="min-w-0 flex-1">
+            <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-brand-600">
+              continuar leitura · {cl.leitura.nomeClube}
+            </p>
+            <p className="truncate font-serif text-xl text-ink-900">{cl.leitura.livroTitulo}</p>
+            <div className="mt-1.5 flex items-center gap-2.5">
+              <div className="min-w-0 flex-1">
+                <ProgressBar atual={atual} meta={cl.leitura.valorMeta} />
+              </div>
+              <span className="shrink-0 text-[13px] text-muted-500">
+                {atual} / {cl.leitura.valorMeta}
               </span>
             </div>
-          )}
-        </div>
-      </Link>
-      <div className="flex items-center gap-2.5">
-        <div className="min-w-0 flex-1">
-          <ProgressBar atual={atual} meta={cl.leitura.valorMeta} />
-        </div>
-        <span className="shrink-0 text-[13px] text-muted-500">
-          {atual} / {cl.leitura.valorMeta}
-        </span>
-        <button onClick={() => setRegistrando(true)} className="btn-primary shrink-0 !px-3 !py-1.5 text-[13px]">
-          + registrar
-        </button>
+            {rostos && <div className="mt-2">{rostos}</div>}
+          </div>
+        </Link>
+        {botao}
       </div>
 
-      <Modal aberto={registrando} onFechar={() => setRegistrando(false)} titulo={cl.leitura.livroTitulo}>
-        <StepperProgresso
-          valor={atual}
-          meta={cl.leitura.valorMeta}
-          unidade={cl.leitura.tipoMeta === "PAGINA" ? "pág." : "cap."}
-          onSalvar={salvar}
-        />
-        {erro && <p className="mt-3 text-center text-xs text-red-600">{erro}</p>}
-      </Modal>
-    </div>
+      {/* Celular (mock 1a): rostos sob o título; barra e botão numa linha embaixo. */}
+      <div className="card flex flex-col gap-3 p-4 lg:hidden">
+        <Link to={`/leituras/${cl.leitura.id}`} className="flex items-center gap-4">
+          <BookCover url={cl.leitura.livroCapaUrl} titulo={cl.leitura.livroTitulo} size="md" />
+          <div className="min-w-0 flex-1">
+            {/* no celular o nome do clube é omitido para o rótulo caber numa linha */}
+            <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-brand-600">continuar leitura</p>
+            <p className="truncate font-serif text-xl text-ink-900">{cl.leitura.livroTitulo}</p>
+            {rostos && <div className="mt-1.5">{rostos}</div>}
+          </div>
+        </Link>
+        <div className="flex items-center gap-2.5">
+          <div className="min-w-0 flex-1">
+            <ProgressBar atual={atual} meta={cl.leitura.valorMeta} />
+          </div>
+          <span className="shrink-0 text-[13px] text-muted-500">
+            {atual} / {cl.leitura.valorMeta}
+          </span>
+          {botao}
+        </div>
+      </div>
+      {modal}
+    </>
   );
 }
 

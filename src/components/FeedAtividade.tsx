@@ -131,6 +131,7 @@ export default function FeedAtividade({
   mostrarClube = true,
   meuUsuarioId = null,
   classeDoTitulo = "",
+  ocultarProgresso = false,
   onItens,
 }: {
   clubeId?: UUID;
@@ -141,6 +142,11 @@ export default function FeedAtividade({
   meuUsuarioId?: number | null;
   /** Ex.: "lg:hidden" para o rótulo aparecer só no celular. */
   classeDoTitulo?: string;
+  /**
+   * Home (mocks 1a e 2b): o progresso de cada um fica em "lendo agora", e o feed mostra só
+   * conversas, conclusões e o resto. `onItens` continua recebendo tudo.
+   */
+  ocultarProgresso?: boolean;
   /** Recebe os itens carregados (a home deriva "lendo agora" deles sem buscar de novo). */
   onItens?: (itens: FeedItemResponse[]) => void;
 }) {
@@ -176,19 +182,20 @@ export default function FeedAtividade({
     }
   }
 
-  if (itens.length === 0) return null;
+  const visiveis = ocultarProgresso ? itens.filter((i) => i.tipo !== "PROGRESSO") : itens;
+  if (visiveis.length === 0) return null;
 
   return (
     <section>
       {titulo && <h2 className={`section-label ${classeDoTitulo}`}>{titulo}</h2>}
       {erroReacao && <p className="mb-2 text-xs text-red-600">não foi possível reagir agora.</p>}
       <ul className="flex flex-col gap-3">
-        {itens.map((item) => (
+        {visiveis.map((item) => (
           <li key={item.id}>
             {item.tipo === "MEMBRO_ENTROU" ? (
               <CartaoEntrada item={item} mostrarClube={mostrarClube} onAcenar={() => aoReagir(item, "ACENO")} />
-            ) : item.tipo === "CONCLUIU" && !mostrarClube ? (
-              <CartaoConclusao item={item} onReagir={(tipo) => aoReagir(item, tipo)} />
+            ) : item.tipo === "CONCLUIU" ? (
+              <CartaoConclusao item={item} mostrarClube={mostrarClube} onReagir={(tipo) => aoReagir(item, tipo)} />
             ) : (
               <Cartao
                 item={item}
@@ -384,25 +391,62 @@ function CartaoEntrada({
 }
 
 /**
- * "terminou" dentro do clube (mock 2c): uma linha só, com as reações que já têm contagem à
- * direita ("👏 5"). Sem nenhuma, fica o 👏 para ser o primeiro a aplaudir.
+ * "terminou": uma linha só, com as reações que já têm contagem à direita ("👏 5"); sem
+ * nenhuma, fica o 👏 para ser o primeiro a aplaudir. No clube (mock 2c) é só isso; na home
+ * (mock 2b) leva o nome do clube e a capa do livro.
  */
-function CartaoConclusao({ item, onReagir }: { item: FeedItemResponse; onReagir: (tipo: TipoReacao) => void }) {
+function CartaoConclusao({
+  item,
+  mostrarClube,
+  onReagir,
+}: {
+  item: FeedItemResponse;
+  mostrarClube: boolean;
+  onReagir: (tipo: TipoReacao) => void;
+}) {
   const destino = destinoDe(item);
   const comContagem = REACOES.filter(({ tipo }) => (item.reacoes[tipo] ?? 0) > 0 || item.minhaReacao === tipo);
-  const visiveis = comContagem.length > 0 ? comContagem : REACOES.filter(({ tipo }) => tipo === "PALMAS");
+  // Na home o mock não mostra o 👏 vazio: só reações que alguém já deu.
+  const visiveis =
+    comContagem.length > 0 || mostrarClube ? comContagem : REACOES.filter(({ tipo }) => tipo === "PALMAS");
+  const capa =
+    mostrarClube && item.livroTitulo ? (
+      <BookCover url={item.livroCapaUrl} titulo={item.livroTitulo} size="sm" />
+    ) : null;
   return (
     <div className="flex items-center gap-3 rounded-xl2 border border-brand-500/40 bg-brand-50 px-5 py-3.5">
       <div className="min-w-0 flex-1">
         {destino ? (
           <Link to={destino} className="block hover:opacity-90">
-            <Cabecalho item={item} mostrarClube={false} />
+            <Cabecalho item={item} mostrarClube={mostrarClube} />
           </Link>
         ) : (
-          <Cabecalho item={item} mostrarClube={false} />
+          <Cabecalho item={item} mostrarClube={mostrarClube} />
+        )}
+        {/* Celular (mock 1b): "há 1 h · ❤️ 👏 5" logo abaixo, alinhado ao texto. */}
+        {visiveis.length > 0 && (
+          <div className="mt-0.5 flex items-center gap-2 pl-[52px] text-xs text-muted-500 lg:hidden">
+            {visiveis.map(({ tipo, emoji, rotulo }) => {
+              const total = item.reacoes[tipo] ?? 0;
+              const marcada = item.minhaReacao === tipo;
+              return (
+                <button
+                  key={tipo}
+                  type="button"
+                  onClick={() => onReagir(tipo)}
+                  aria-label={rotulo}
+                  aria-pressed={marcada}
+                  className={`flex items-center gap-0.5 ${marcada ? "font-semibold text-brand-600" : ""}`}
+                >
+                  <span>{emoji}</span>
+                  {total > 0 && <span>{total}</span>}
+                </button>
+              );
+            })}
+          </div>
         )}
       </div>
-      <div className="flex shrink-0 gap-1.5">
+      <div className="hidden shrink-0 gap-1.5 lg:flex">
         {visiveis.map(({ tipo, emoji, rotulo }) => {
           const total = item.reacoes[tipo] ?? 0;
           const marcada = item.minhaReacao === tipo;
@@ -425,6 +469,7 @@ function CartaoConclusao({ item, onReagir }: { item: FeedItemResponse; onReagir:
           );
         })}
       </div>
+      {capa}
     </div>
   );
 }

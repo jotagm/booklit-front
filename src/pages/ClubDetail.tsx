@@ -353,7 +353,14 @@ export default function ClubDetail() {
 
           <div className="pt-4">
             {aba === "atividade" && (
-              <FeedAtividade clubeId={clubeId} limite={15} titulo="" mostrarClube={false} meuUsuarioId={usuario?.id ?? null} />
+              <FeedAtividade
+                clubeId={clubeId}
+                limite={30}
+                titulo=""
+                mostrarClube={false}
+                ocultarProgresso
+                meuUsuarioId={usuario?.id ?? null}
+              />
             )}
 
             {aba === "anteriores" &&

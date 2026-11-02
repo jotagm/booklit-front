@@ -26,7 +26,7 @@ export default function FacePile({
 }) {
   const visiveis = pessoas.slice(0, max);
   const resto = pessoas.length - visiveis.length;
-  const sobreposicao = Math.round(tamanho * 0.3);
+  const sobreposicao = Math.round(tamanho * (tamanho >= 28 ? 0.18 : 0.3));
   // Abaixo de 28px as iniciais não cabem com a sobreposição: fica só a cor.
   const base = { width: tamanho, height: tamanho, boxShadow: `0 0 0 2px ${anel}` };
 

@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
-import type { FeedItemResponse } from "../api/types";
+import type { FeedItemResponse, UsuarioId } from "../api/types";
+import type { ClubeDoPainel } from "../hooks/usePainel";
 import { corPorId } from "../utils/cores";
 import { diasAte, tempoRelativo } from "../utils/date";
 
@@ -13,6 +14,49 @@ export function quemEstaLendo(feed: FeedItemResponse[]): FeedItemResponse[] {
     vistos.add(i.usuarioId);
     return true;
   });
+}
+
+/**
+ * Quem está lendo, a partir do progresso de cada membro nas leituras ativas dos seus clubes
+ * (os registros que o painel já carrega). O feed só completa com quem não aparece ali: ele vem
+ * limitado aos itens mais recentes, e comentários empurram o progresso para fora dele.
+ */
+export function lendoAgoraDoPainel(
+  clubes: ClubeDoPainel[],
+  feed: FeedItemResponse[],
+  meuId: UsuarioId | null
+): FeedItemResponse[] {
+  const porPessoa = new Map<UsuarioId, FeedItemResponse>();
+  for (const c of clubes) {
+    const l = c.leituraAtiva;
+    if (!l) continue;
+    for (const r of c.registros) {
+      if (r.usuarioId === meuId || r.valorAtual <= 0) continue;
+      const item: FeedItemResponse = {
+        id: `registro:${r.id}`,
+        tipo: l.valorMeta > 0 && r.valorAtual >= l.valorMeta ? "CONCLUIU" : "PROGRESSO",
+        clubeId: c.membro.clubeId,
+        clubeNome: c.membro.nomeClube,
+        usuarioId: r.usuarioId,
+        usuarioNome: r.nomeUsuario,
+        usuarioFotoUrl: r.fotoUrl ?? null,
+        ehVoce: false,
+        quando: r.updatedAt,
+        livroTitulo: l.livroTitulo,
+        livroCapaUrl: l.livroCapaUrl,
+        valorAtual: r.valorAtual,
+        valorMeta: l.valorMeta,
+        leituraId: l.id,
+        reacoes: {},
+      };
+      const atual = porPessoa.get(r.usuarioId);
+      if (!atual || new Date(item.quando) > new Date(atual.quando)) porPessoa.set(r.usuarioId, item);
+    }
+  }
+  for (const i of quemEstaLendo(feed)) {
+    if (i.usuarioId && i.usuarioId !== meuId && !porPessoa.has(i.usuarioId)) porPessoa.set(i.usuarioId, i);
+  }
+  return [...porPessoa.values()].sort((a, b) => new Date(b.quando).getTime() - new Date(a.quando).getTime());
 }
 
 const leuHoje = (i: FeedItemResponse) => (diasAte(i.quando) ?? -99) === 0;
@@ -45,32 +89,39 @@ export function LendoAgoraFaixa({ itens }: { itens: FeedItemResponse[] }) {
   );
 }
 
-/** Desktop: lista na coluna lateral. */
-export function LendoAgoraLista({ itens }: { itens: FeedItemResponse[] }) {
-  if (itens.length === 0) return null;
+/**
+ * Desktop: lista na coluna lateral. Com `vazio`, a seção aparece mesmo sem ninguém, para a
+ * coluna não sumir quando os outros membros ainda não registraram progresso.
+ */
+export function LendoAgoraLista({ itens, vazio }: { itens: FeedItemResponse[]; vazio?: string }) {
+  if (itens.length === 0 && !vazio) return null;
   return (
     <section>
       <h2 className="section-label">lendo agora</h2>
-      <ul className="card py-1.5">
-        {itens.slice(0, 6).map((i) => (
-          <li key={i.usuarioId}>
-            <Link to={`/leitores/${i.usuarioId}`} className="flex items-center gap-2.5 px-3.5 py-2 hover:bg-ink-800/[0.03]">
-              <span className={`rounded-full border-2 p-0.5 ${leuHoje(i) ? "border-brand-500" : "border-ink-800/15"}`}>
-                <Anel item={i} tamanho={24} />
-              </span>
-              <span className="min-w-0 flex-1 leading-tight">
-                <span className="block text-[13px] font-semibold text-ink-900">{(i.usuarioNome ?? "").split(" ")[0]}</span>
-                <span className="block truncate text-xs text-muted-500">
-                  {i.livroTitulo} · {i.tipo === "CONCLUIU" ? "terminou" : `pág. ${i.valorAtual}`}
+      {itens.length === 0 ? (
+        <p className="card px-4 py-3.5 text-[13px] text-muted-500">{vazio}</p>
+      ) : (
+        <ul className="card py-1.5">
+          {itens.slice(0, 6).map((i) => (
+            <li key={i.usuarioId}>
+              <Link to={`/leitores/${i.usuarioId}`} className="flex items-center gap-2.5 px-3.5 py-2 hover:bg-ink-800/[0.03]">
+                <span className={`rounded-full border-2 p-0.5 ${leuHoje(i) ? "border-brand-500" : "border-ink-800/15"}`}>
+                  <Anel item={i} tamanho={24} />
                 </span>
-              </span>
-              <span className={`text-[11px] ${leuHoje(i) ? "font-semibold text-brand-600" : "text-muted-500"}`}>
-                {leuHoje(i) ? "hoje" : diasCurto(i)}
-              </span>
-            </Link>
-          </li>
-        ))}
-      </ul>
+                <span className="min-w-0 flex-1 leading-tight">
+                  <span className="block text-[13px] font-semibold text-ink-900">{(i.usuarioNome ?? "").split(" ")[0]}</span>
+                  <span className="block truncate text-xs text-muted-500">
+                    {i.livroTitulo} · {i.tipo === "CONCLUIU" ? "terminou" : `pág. ${i.valorAtual}`}
+                  </span>
+                </span>
+                <span className={`text-[11px] ${leuHoje(i) ? "font-semibold text-brand-600" : "text-muted-500"}`}>
+                  {leuHoje(i) ? "hoje" : diasCurto(i)}
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }

@@ -167,11 +167,14 @@ export default function LeituraDetail() {
       <h2 className="section-label mb-0 hidden lg:block">seu progresso</h2>
       <StepperProgresso valor={minhaPosicao} meta={leitura.valorMeta} unidade={unidade} onSalvar={salvar} />
       {registros.length > 0 && (
-        <>
+        <div className="flex flex-col gap-3 lg:hidden">
           <PistaDoGrupo registros={registros} meta={leitura.valorMeta} meuUsuarioId={meuId} />
           <p className="text-xs text-muted-600">{resumoDaPista(registros, meuId)}</p>
-        </>
+        </div>
       )}
+      <div className="hidden lg:block">
+        <ProgressBar atual={minhaPosicao} meta={leitura.valorMeta} />
+      </div>
     </section>
   );
 
