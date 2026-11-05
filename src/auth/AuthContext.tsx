@@ -1,6 +1,11 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { login as apiLogin, criarConta as apiCriarConta, concluirLogin as apiConcluirLogin } from "../api/auth";
+import {
+  login as apiLogin,
+  criarConta as apiCriarConta,
+  concluirLogin as apiConcluirLogin,
+  redefinirSenha as apiRedefinirSenha,
+} from "../api/auth";
 import { verificarCodigo } from "../api/otp";
 import { removerFotoDePerfil, trocarFotoDePerfil } from "../api/foto";
 import {
@@ -32,6 +37,8 @@ interface AuthContextValue {
   cadastrar: (nome: string, email: string, senha: string) => Promise<void>;
   /** Cadastro: confere o código do e-mail e, se estiver certo, abre a sessão. */
   confirmarCadastro: (desafioId: string, codigo: string) => Promise<void>;
+  /** "Esqueci minha senha": código certo troca a senha e já abre a sessão. */
+  redefinirSenha: (desafioId: string, codigo: string, novaSenha: string) => Promise<void>;
   /** Segunda etapa: confere o código do e-mail e abre a sessão. */
   confirmarCodigo: (desafioId: string, codigo: string) => Promise<void>;
   sair: () => void;
@@ -150,6 +157,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [abrirSessao]
   );
 
+  const redefinirSenha = useCallback(
+    async (desafioId: string, codigo: string, novaSenha: string) => {
+      const { token } = await apiRedefinirSenha(desafioId, codigo, novaSenha);
+      if (!token) throw new Error("Resposta sem token");
+      await abrirSessao(token);
+    },
+    [abrirSessao]
+  );
+
   const atualizarPerfil = useCallback(
     async (dados: UsuarioRequest) => {
       if (!usuario) return;
@@ -191,6 +207,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       entrar,
       cadastrar,
       confirmarCadastro,
+      redefinirSenha,
       confirmarCodigo,
       sair,
       atualizarPerfil,
@@ -205,6 +222,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       entrar,
       cadastrar,
       confirmarCadastro,
+      redefinirSenha,
       confirmarCodigo,
       sair,
       atualizarPerfil,

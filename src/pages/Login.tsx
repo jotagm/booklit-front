@@ -95,7 +95,13 @@ export default function Login() {
         />
 
         <div className="-mt-2 text-right">
-          <span className="text-xs text-muted-500">esqueci a senha</span>
+          <Link
+            to="/esqueci-senha"
+            state={{ email }}
+            className="text-xs font-semibold text-brand-600 hover:text-brand-700"
+          >
+            esqueci a senha
+          </Link>
         </div>
 
         <Button type="submit" loading={enviando} fullWidth>

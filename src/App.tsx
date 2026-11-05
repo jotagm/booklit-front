@@ -4,6 +4,7 @@ import RequireAuth, { RedirectIfAuth } from "./auth/RequireAuth";
 import AppLayout from "./layouts/AppLayout";
 
 import Welcome from "./pages/Welcome";
+import EsqueciSenha from "./pages/EsqueciSenha";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import ClubList from "./pages/ClubList";
@@ -41,6 +42,14 @@ export default function App() {
           element={
             <RedirectIfAuth>
               <Login />
+            </RedirectIfAuth>
+          }
+        />
+        <Route
+          path="/esqueci-senha"
+          element={
+            <RedirectIfAuth>
+              <EsqueciSenha />
             </RedirectIfAuth>
           }
         />
