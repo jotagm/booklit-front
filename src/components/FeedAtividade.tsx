@@ -131,7 +131,7 @@ export default function FeedAtividade({
   mostrarClube = true,
   meuUsuarioId = null,
   classeDoTitulo = "",
-  ocultarProgresso = false,
+  progressoCompacto = false,
   onItens,
 }: {
   clubeId?: UUID;
@@ -143,10 +143,10 @@ export default function FeedAtividade({
   /** Ex.: "lg:hidden" para o rótulo aparecer só no celular. */
   classeDoTitulo?: string;
   /**
-   * Home (mocks 1a e 2b): o progresso de cada um fica em "lendo agora", e o feed mostra só
-   * conversas, conclusões e o resto. `onItens` continua recebendo tudo.
+   * Home e clube: o progresso de cada um já aparece em destaque no "lendo agora" e na pista da
+   * leitura (mocks 1a, 2b e 2c), então no feed ele vira uma linha só, sem o cartão com barra.
    */
-  ocultarProgresso?: boolean;
+  progressoCompacto?: boolean;
   /** Recebe os itens carregados (a home deriva "lendo agora" deles sem buscar de novo). */
   onItens?: (itens: FeedItemResponse[]) => void;
 }) {
@@ -182,17 +182,18 @@ export default function FeedAtividade({
     }
   }
 
-  const visiveis = ocultarProgresso ? itens.filter((i) => i.tipo !== "PROGRESSO") : itens;
-  if (visiveis.length === 0) return null;
+  if (itens.length === 0) return null;
 
   return (
     <section>
       {titulo && <h2 className={`section-label ${classeDoTitulo}`}>{titulo}</h2>}
       {erroReacao && <p className="mb-2 text-xs text-red-600">não foi possível reagir agora.</p>}
       <ul className="flex flex-col gap-3">
-        {visiveis.map((item) => (
+        {itens.map((item) => (
           <li key={item.id}>
-            {item.tipo === "MEMBRO_ENTROU" ? (
+            {item.tipo === "PROGRESSO" && progressoCompacto ? (
+              <LinhaDeProgresso item={item} mostrarClube={mostrarClube} onReagir={(tipo) => aoReagir(item, tipo)} />
+            ) : item.tipo === "MEMBRO_ENTROU" ? (
               <CartaoEntrada item={item} mostrarClube={mostrarClube} onAcenar={() => aoReagir(item, "ACENO")} />
             ) : item.tipo === "CONCLUIU" ? (
               <CartaoConclusao item={item} mostrarClube={mostrarClube} onReagir={(tipo) => aoReagir(item, tipo)} />
@@ -395,6 +396,70 @@ function CartaoEntrada({
  * nenhuma, fica o 👏 para ser o primeiro a aplaudir. No clube (mock 2c) é só isso; na home
  * (mock 2b) leva o nome do clube e a capa do livro.
  */
+/**
+ * Progresso em uma linha: "Ana avançou para a pág. 64 de Torto Arado", com o clube e o horário
+ * embaixo e as reações à direita (só as que já têm contagem; sem nenhuma, o 🔥).
+ */
+function LinhaDeProgresso({
+  item,
+  mostrarClube,
+  onReagir,
+}: {
+  item: FeedItemResponse;
+  mostrarClube: boolean;
+  onReagir: (tipo: TipoReacao) => void;
+}) {
+  const destino = destinoDe(item);
+  const quem = item.ehVoce ? "Você" : primeiroNome(item.usuarioNome);
+  const posicao = `${item.unidade === "capítulos" ? "o cap." : "a pág."} ${item.valorAtual}`;
+  const comContagem = REACOES.filter(({ tipo }) => (item.reacoes[tipo] ?? 0) > 0 || item.minhaReacao === tipo);
+  const visiveis = comContagem.length > 0 ? comContagem : REACOES.filter(({ tipo }) => tipo === "FOGO");
+  const texto = (
+    <div className="flex min-w-0 items-center gap-2.5">
+      <Avatar nome={item.usuarioNome ?? "?"} usuarioId={item.usuarioId ?? 0} fotoUrl={item.usuarioFotoUrl} size="sm" />
+      <div className="min-w-0">
+        <p className="text-[13px] leading-snug text-ink-800 lg:truncate">
+          <strong className="font-semibold text-ink-900">{quem}</strong> avançou para {posicao} de{" "}
+          <span className="font-semibold text-ink-900">{item.livroTitulo}</span>
+        </p>
+        <Detalhes item={item} mostrarClube={mostrarClube} />
+      </div>
+    </div>
+  );
+  return (
+    <div className="flex items-center gap-3 rounded-xl2 border border-ink-800/10 px-4 py-2.5">
+      <div className="min-w-0 flex-1">
+        {destino ? (
+          <Link to={destino} className="block hover:opacity-90">
+            {texto}
+          </Link>
+        ) : (
+          texto
+        )}
+      </div>
+      <div className="flex shrink-0 items-center gap-2 text-xs text-muted-500">
+        {visiveis.map(({ tipo, emoji, rotulo }) => {
+          const total = item.reacoes[tipo] ?? 0;
+          const marcada = item.minhaReacao === tipo;
+          return (
+            <button
+              key={tipo}
+              type="button"
+              onClick={() => onReagir(tipo)}
+              aria-label={rotulo}
+              aria-pressed={marcada}
+              className={`flex items-center gap-0.5 ${marcada ? "font-semibold text-brand-600" : ""}`}
+            >
+              <span className={marcada || total > 0 ? "" : "opacity-60 grayscale"}>{emoji}</span>
+              {total > 0 && <span>{total}</span>}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function CartaoConclusao({
   item,
   mostrarClube,

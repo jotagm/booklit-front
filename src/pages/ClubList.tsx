@@ -148,8 +148,8 @@ export default function ClubList() {
             <div className="order-4">
               <FeedAtividade
                 key={versaoDoFeed}
-                limite={40}
-                ocultarProgresso
+                limite={30}
+                progressoCompacto
                 titulo="nos seus clubes"
                 classeDoTitulo="lg:hidden"
                 meuUsuarioId={usuario?.id ?? null}

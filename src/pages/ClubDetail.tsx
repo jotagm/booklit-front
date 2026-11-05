@@ -358,7 +358,7 @@ export default function ClubDetail() {
                 limite={30}
                 titulo=""
                 mostrarClube={false}
-                ocultarProgresso
+                progressoCompacto
                 meuUsuarioId={usuario?.id ?? null}
               />
             )}
